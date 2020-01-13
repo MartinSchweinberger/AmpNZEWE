@@ -8,7 +8,7 @@ bibliography: bibliography.bib
 link-citations: yes
 ---
 
-This document shows an analysis that was performed with the aim of investigating ongoing changes in the adjective ampplifier system of New Zealand English (NZE) and to determine how innovative variants come to dominate the NZE amplifier system based on the Wellington Spoken Corpus (WSC). The following represents part 1 of this analysis.
+This document shows an analysis that was performed with the aim of investigating ongoing changes in the adjective amplifier system of New Zealand English (NZE) and to determine how innovative variants come to dominate the NZE amplifier system based on the Wellington Spoken Corpus (WSC). The following represents part 1 of this analysis.
 
 In a first step, we prepare the session by cleaning the workspace, loading packages, setting options, and defining paths.
 
@@ -97,7 +97,7 @@ wordcount <- wscdf %>%
   dplyr::summarise(Wordcount = sum(WordCount))
 ```
 
-Next, we save this preprocessed data to the disc.
+Next, we save this pre-processed data to the disc.
 
 ```{r adjampnze_1_04, echo=T, eval = T, message=FALSE, warning=FALSE}
 # save raw data to disc
@@ -317,7 +317,7 @@ Next, we save the bio-demographic data to the disc.
 wscadjdf <- read.delim("datatables/wscadjdf.txt", sep = "\t", header = T, skipNul = T)
 ```
 
-Next, we join the concordancing data and the bio-demographic data and add the freqeuncy of adjectives by age group to the data.
+Next, we join the concordancing data and the bio-demographic data and add the frequency of adjectives by age group to the data.
 
 ```{r adjampnze_1_11, echo=T, eval = T, message=FALSE, warning=FALSE}
 # join wscadjdf and wscspeakerinformation
@@ -409,7 +409,7 @@ wscadjdf$Adjective <- tolower(wscadjdf$Adjective)
 head(wscadjdf)
 ```
 
-Next, we code whether or not an amplifier occured in a primed context, i.e. a context in which the same amplifier had occurred in up to three slots preceding the current slot and also define patterns that, if they occurred, in the context of the adjective in question, represent a reason for removing the adjective from the analysis (e.g. if the adjective was negated).
+Next, we code whether or not an amplifier occurred in a primed context, i.e. a context in which the same amplifier had occurred in up to three slots preceding the current slot and also define patterns that, if they occurred, in the context of the adjective in question, represent a reason for removing the adjective from the analysis (e.g. if the adjective was negated).
 
 ```{r adjampnze_1_14, echo=T, eval = T, message=FALSE, warning=FALSE}
 # code priming
@@ -438,7 +438,7 @@ nonpropadj <- c("only", "much", "many", "cheaper", "cheaperr", "bests", "larger"
 str(wscadjdf); head(wscadjdf); nrow(wscadjdf)
 ```
 
-Next, we remove the adjectives that occurred in contexts that identify their contexts as being not isntances of the variable context. To do this, we cerate a vector of indices of problematic adjectives that we then remove from the analysis.
+Next, we remove the adjectives that occurred in contexts that identify their contexts as being not instances of the variable context. To do this, we create a vector of indices of problematic adjectives that we then remove from the analysis.
 
 ```{r adjampnze_1_15, echo=T, eval = T, message=FALSE, warning=FALSE}
 # find items to be removed
@@ -456,7 +456,7 @@ wscadjdf <- wscadjdf[-idxs,]
 wscadjdf <- wscadjdf[!wscadjdf$Variant == "", ]
 ```
 
-Next, we save the data to the disc and determine if an adjective was at all amplified or if it was amplified by at least to different types of amplifiers. Only adjectives that were amplified by at elast two different amplifiers are consiedred here to exclude fixed expressions such as *right honorable*.
+Next, we save the data to the disc and determine if an adjective was at all amplified or if it was amplified by at least to different types of amplifiers. Only adjectives that were amplified by at least two different amplifiers are considered here to exclude fixed expressions such as *right honourable*.
 
 ```{r adjampnze_1_16, echo=T, eval = T, message=FALSE, warning=FALSE}
 # save raw data to disc
@@ -482,7 +482,7 @@ Next, we inspect the adjectives that remain in the analysis.
 names(table(wscadjdf$Adjective))
 ```
 
-Next, we create a vector of adjective that are either tagged errorneously or represent misspellings. In a next step, these adjectives are removed from the analysis.
+Next, we create a vector of adjective that are either tagged erroneously or represent misspellings. In a next step, these adjectives are removed from the analysis.
 
 ```{r adjampnze_1_17, echo=T, eval = T, message=FALSE, warning=FALSE}
 # create vector with false adjectives

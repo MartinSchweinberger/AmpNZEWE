@@ -8,7 +8,7 @@ bibliography: bibliography.bib
 link-citations: yes
 ---
 
-This document shows an analysis that was performed with the aim of investigating ongoing changes in the adjective ampplifier system of New Zealand English (NZE) and to determine how innovative variants come to dominate the NZE amplifier system based on the Wellington Spoken Corpus (WSC). The following represents part 2 of this analysis.
+This document shows an analysis that was performed with the aim of investigating ongoing changes in the adjective amplifier system of New Zealand English (NZE) and to determine how innovative variants come to dominate the NZE amplifier system based on the Wellington Spoken Corpus (WSC). The following represents part 2 of this analysis.
 
 In a first step, we prepare the session by cleaning the workspace, loading packages, setting options, and defining paths.
 
@@ -66,7 +66,7 @@ real_attributive <- examples_attributive[examples_attributive$Amplifier == "real
 head(very_attributive); head(very_predicative)
 ```
 
-Next, we clean the data. Here, we recode age as the original age groups would have too few speakers to warrant meaningful calims about the language use.
+Next, we clean the data. Here, we recode age as the original age groups would have too few speakers to warrant meaningful claims about the language use.
 
 ```{r adjampnze_2_04, echo=T, eval = T, message=FALSE, warning=FALSE}
 # clean data
@@ -183,7 +183,7 @@ ldtb <- ampwsc %>%
 head(ldtb)
 ```
 
-Next, we create a copy of the data for data visualization, and we also inspect the amplifier variants and theri frequency.
+Next, we create a copy of the data for data visualization, and we also inspect the amplifier variants and their frequency.
 
 ```{r adjampnze_2_07, echo=T, eval = T, message=FALSE, warning=FALSE}
 # prepare data for plotting
@@ -370,7 +370,7 @@ p2b <- ggplot(p2bd, aes(x = jitter(Age), y = zero)) +
 p2b
 ```
 
-Now, we plot the pecentages of the most prominent amplifiers by age and function.
+Now, we plot the percentages of the most prominent amplifiers by age and function.
 
 ```{r adjampnze_2_10, echo=T, eval = T, message=FALSE, warning=FALSE}
 # p3
@@ -477,7 +477,7 @@ p3b
 
 ```
 
-Now, we turn to the lexical diversity of amplifiers to check if changes in frequency preceed or follow changes in the lexical diversity of variants. We begin by tabulating the frequency of amplifiers.
+Now, we turn to the lexical diversity of amplifiers to check if changes in frequency proceed or follow changes in the lexical diversity of variants. We begin by tabulating the frequency of amplifiers.
 
 ```{r adjampnze_2_12, echo=T, eval = T, message=FALSE, warning=FALSE}
 # table variants
@@ -815,7 +815,7 @@ p7 <- ggplot(AdjectiveChangeData, aes(x = Age, y = other)) +
 p7
 ```
 
-Next, we turn to an analysis of changes in adjective frequency and visualiaze the frequencies across gae groups. 
+Next, we turn to an analysis of changes in adjective frequency and visualize the frequencies across age groups. 
 
 ```{r adjampnze_2_21, echo=T, eval = T, message=FALSE, warning=FALSE}
 #                  CHANGES IN Adjective FREQ
