@@ -133,30 +133,43 @@ Next, we remove those variables that are deemed unimportant by the first Boruta 
 
 ```{r adjampnze_3_13, echo=T, eval = T, message=FALSE, warning=FALSE}
 # remove superfluous variables
-borutadata$Gender <- NULL
+borutadata$Gradability <- NULL
 borutadata$Function <- NULL
 borutadata$Education <- NULL
+borutadata$L1 <- NULL
 # run2
 boruta.reallywsc <- Boruta(really~.,data=borutadata)
 print(boruta.reallywsc)
 ```
 
-Next, we remove those variables that are deemed unimportant by the first Boruta run and proceed with a second run.
+Next, we retreive the variables deemed important by the Boruta analysis by retrieving the forumla.
 
 ```{r adjampnze_3_14, echo=T, eval = T, message=FALSE, warning=FALSE}
 
 getConfirmedFormula(boruta.reallywsc)
+```
 
+Next, we plot the reslts of the second Boruta run.
+
+```{r adjampnze_3_15, echo=T, eval = T, message=FALSE, warning=FALSE}
 png("images/BorutaVeryWsc2.png",  width = 1200, height = 300)
 plot(boruta.reallywsc, cex = .75)
 dev.off()
 plot(boruta.reallywsc)
+```
 
+Next, we plot the history of the second Boruta run.
+
+```{r adjampnze_3_16, echo=T, eval = T, message=FALSE, warning=FALSE}
 png("images/BorutaNSP_History2.png",  width = 680, height = 480)
 plotImpHistory(boruta.reallywsc)
 dev.off()
 plotImpHistory(boruta.reallywsc)
+```
 
+Next, we plot a publishable version of the Boruta results.
+
+```{r adjampnze_3_17, echo=T, eval = T, message=FALSE, warning=FALSE}
 png("images/BorutaVeryWsc_final.png",  width = 1500, height = 750)
 par(mar = c(22, 8, 4, 2) + 0.1)
 plot(boruta.reallywsc, cex.axis=3, las=2, xlab="", ylab = "", cex = 3, 
@@ -166,10 +179,18 @@ mtext("Predictors", 1, line = 21, at = 9, cex = 3)
 mtext("Control", 1, line = 21, at = 2, cex = 3)
 mtext("Importance", 2, line = 5, at = 25, cex = 3, las = 0)
 dev.off()
+plot(boruta.reallywsc, cex.axis=3, las=2, xlab="", ylab = "", cex = 3, 
+     col = c(rep("grey50", 9), rep("grey90",3)))
+abline(v = 3.5, lty = "dashed")
+mtext("Predictors", 1, line = 21, at = 9, cex = 3)
+mtext("Control", 1, line = 21, at = 2, cex = 3)
+mtext("Importance", 2, line = 5, at = 25, cex = 3, las = 0)
 par(mar = c(5, 4, 4, 2) + 0.1)
+```
 
-###########################################################################
-#           MIXED EFFECTS BIONOMIAL LOGISTIC REGRESSION
+Now, we start with the regression modelling and begin by loading the packages, setting options for contarsts, and creating fixed-effects base-line models.
+
+```{r adjampnze_3_18, echo=T, eval = T, message=FALSE, warning=FALSE}
 # load library
 library(rms)
 # set options
@@ -181,83 +202,89 @@ m0.glm = glm(really ~ 1, family = binomial, data = reallywsc) # baseline model g
 m0.lrm = lrm(really ~ 1, data = reallywsc, x = T, y = T) # baseline model lrm
 # inspect results
 summary(m0.glm)
+```
 
-m0.lrm
+Now, we load packages for mixed-effects modelling and create a mixed-effects base-line model.
 
-###########################################################################
+```{r adjampnze_3_19, echo=T, eval = T, message=FALSE, warning=FALSE}
 # load libraries
 library(lme4)
 library(car)
 # create model with a random intercept for token
-m0.lmer <- lmer(really ~ (1|Adjective), data = reallywsc, family = binomial)
-# Baayen (2008:278-284) uses the call above but the this call is now longer
-# up-to-date becwsce the "family" parameter is deprecated
-# we switch to glmer (suggested by R) instead but we will also
-# create a lmer object of the final minimal adequate model as some functions
-# will not (yet) work on glmer
-m0.glmer = glmer(really ~ (1|Adjective), data = reallywsc, family = binomial)
+m0.glmer = glmer(really ~ (1|Adjective), data = reallywsc, family = binomial, 
+                  control=glmerControl(optimizer="bobyqa"))
+```
 
-# results of the lmer object
-print(m0.lmer, corr = F)
+Now, check if including the random effect is permitted by comparing the aic from the glm to aic from the glmer model.
 
-# check if including the random effect is permitted by comparing the aic from the glm to aic from the glmer model
+```{r adjampnze_3_20, echo=T, eval = T, message=FALSE, warning=FALSE}
 aic.glmer <- AIC(logLik(m0.glmer))
 aic.glm <- AIC(logLik(m0.glm))
 aic.glmer; aic.glm
+```
 
-# the aic of the glmer object is smaller which shows that including the random
-# intercepts is justified
+The AIC of the glmer object is smaller which shows that including the random intercepts is justified. In addition, we test if including the random intercepts is justified statistically using a likelihood ratio test.
 
+```{r adjampnze_3_21, echo=T, eval = T, message=FALSE, warning=FALSE}
 # test random effects
 null.id = -2 * logLik(m0.glm) + 2 * logLik(m0.glmer)
-pchisq(as.numeric(null.id), df=1, lower.tail=F) # sig m0.glmer better than m0.glm
+pchisq(as.numeric(null.id), df=1, lower.tail=F) 
+```
 
+The mixed-effects model (m0.glmer) has a significantly better fit than the fixed effects model (m0.glm). We continue by inspecting the results of the mixed-effects baseline model.
+
+```{r adjampnze_3_22, echo=T, eval = T, message=FALSE, warning=FALSE}
 # inspect results
-summary(m0.glm)
-
 summary(m0.glmer)
+```
 
-###########################################################################
-# model fitting
-# fit the model to find the "best" model, i.e. the minimal adequate model
-# we will use a step-wise step up procedure
-# we need to add "control = glmerControl(optimizer = "bobyqa")" 
-# becwsce otherwise R fails to converge
-#	manual modelfitting
-m0.glmer <- glmer(really ~ 1 + (1|Adjective), family = binomial, data = reallywsc, 
-                  control=glmerControl(optimizer="bobyqa"))
+Now, we continue with the model fitting. We use a step-wise step-up procedure with vif cutoffs of 5 for main effects and 30 for interactions. We start by adding Age.
+
+```{r adjampnze_3_23, echo=T, eval = T, message=FALSE, warning=FALSE}
 # add Age
 ifelse(min(ftable(reallywsc$Age, reallywsc$really)) == 0, "not possible", "possible")
 m1.glm <- update(m0.glm, .~.+Age)
 m1.glmer <- update(m0.glmer, .~.+Age)
-anova(m0.glmer, m1.glmer, test = "Chi")                            # SIG! (p = 0.00000000000000022 ***)
-Anova(m1.glmer, type = "III", test = "Chi")                        # SIG! (p = 0.00000000000000022 ***)
+anova(m0.glmer, m1.glmer, test = "Chi") 
+Anova(m1.glmer, type = "III", test = "Chi")
+```
 
-# add Adjective
-ifelse(min(ftable(reallywsc$Adjective, reallywsc$really)) == 0, "not possible", "possible")
-# not possible
+We retain Age because it is significant. We continue by adding Frequency.
 
+```{r adjampnze_3_24, echo=T, eval = T, message=FALSE, warning=FALSE}
 # add Frequency
 m2.glm <- update(m1.glm, .~.+Frequency)
 max(vif(m2.glm)[,1])                                               # VIFs ok
 m2.glmer <- update(m1.glmer, .~.+Frequency)
 anova(m2.glmer, m1.glmer, test = "Chi")                            # not sig (p=0.618)
+```
 
+Although including Frequency does not lead to substantial collinearity (vifs > 5), we do not retain it in the model because it is not significant. We continue by adding Emotionality.
+
+```{r adjampnze_3_25, echo=T, eval = T, message=FALSE, warning=FALSE}
 # add Emotionality
 ifelse(min(ftable(reallywsc$Emotionality, reallywsc$really)) == 0, "not possible", "possible")
 m3.glm <- update(m1.glm, .~.+Emotionality)
-max(vif(m3.glm)[,1])                                               # VIFs ok
+max(vif(m3.glm)[,1])                         
 m3.glmer <- update(m1.glmer, .~.+Emotionality)
-anova(m3.glmer, m1.glmer, test = "Chi")                            # SIG! (p = 0.00004315 ***)
-Anova(m3.glmer, type = "III", test = "Chi")                        # SIG! (p = 0.000146 ***)
+anova(m3.glmer, m1.glmer, test = "Chi")      
+Anova(m3.glmer, type = "III", test = "Chi")   
+```
 
+Including Emotionality does not lead to substantial collinearity (vifs > 5) and we retain it in the model because it is significant. We proceed with adding Ethnicity.
+
+```{r adjampnze_3_26, echo=T, eval = T, message=FALSE, warning=FALSE}
 # add Ethnicity
 ifelse(min(ftable(reallywsc$Ethnicity, reallywsc$really)) == 0, "not possible", "possible")
 m4.glm <- update(m3.glm, .~.+Ethnicity)
 max(vif(m4.glm)[,1])                                               # VIFs ok
 m4.glmer <- update(m3.glmer, .~.+Ethnicity)
 anova(m4.glmer, m3.glmer, test = "Chi")                            # not sig (p=0.9503)
+```
 
+Including Ethnicity does not lead to substantial collinearity (vifs > 5) but we do not retain it in the model because it is not significant. We proceed with adding SemanticCategory.
+
+```{r adjampnze_3_26, echo=T, eval = T, message=FALSE, warning=FALSE}
 # add SemanticCategory
 ifelse(min(ftable(reallywsc$SemanticCategory, reallywsc$really)) == 0, "not possible", "possible")
 m5.glm <- update(m3.glm, .~.+SemanticCategory)

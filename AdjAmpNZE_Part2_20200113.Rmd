@@ -916,7 +916,7 @@ Next, we create a regression data set.
 # clean data
 ampwsc <- ampwsc %>%
   dplyr::select(-Token)  %>%
-  dplyr::mutate(very = ifelse(Variant == "really", "really", "other"))  %>%
+  dplyr::mutate(really = ifelse(Variant == "really", "really", "other"))  %>%
   dplyr::select(-Amplified) %>%
   mutate(Date=str_replace_all(Date, ".*/", "")) %>%
   mutate(Date=str_replace_all(Date, " ", "")) %>%
@@ -958,12 +958,12 @@ Next, we tabulate the regression data set.
 ```{r adjampnze_2_26, echo=T, eval = T, message=FALSE, warning=FALSE}
 # create table
 Table2 <- ampwsc %>%
-  dplyr::select(Age, Gender, FileSpeaker, very)  %>%
+  dplyr::select(Age, Gender, FileSpeaker, really)  %>%
   dplyr::group_by(Age, Gender) %>%
   dplyr::summarize(Speakers = length(names(table(FileSpeaker))),
                    AdjectiveSlots = n(),
-                   very = table(very)[2]) %>%
-  dplyr::mutate(Percent = round(very/AdjectiveSlots*100, 2))
+                   really = table(really)[2]) %>%
+  dplyr::mutate(Percent = round(really/AdjectiveSlots*100, 2))
 Table2 <- rbind(as.data.frame(Table2), c("", "", sum(Table2$Speakers), 
                   sum(Table2$AdjectiveSlots), 
                   sum(Table2$very), round(mean(Table2$Percent), 2)))
