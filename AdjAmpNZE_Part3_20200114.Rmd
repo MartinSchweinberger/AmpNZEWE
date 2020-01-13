@@ -1,0 +1,1761 @@
+---
+title: "A corpus-based analysis of adjective amplification in New Zealand English - Part 3"
+author: "Anonymous"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output:
+  bookdown::html_document2: default
+bibliography: bibliography.bib
+link-citations: yes
+---
+
+This document shows an analysis that was performed with the aim of investigating ongoing changes in the adjective ampplifier system of New Zealand English (NZE) and to determine how innovative variants come to dominate the NZE amplifier system based on the Wellington Spoken Corpus (WSC). The following represents part 3 of this analysis.
+
+In a first step, we prepare the session by cleaning the workspace, loading packages, setting options, and defining paths.
+
+```{r adjampnze_3_01, echo=T, eval = T, message=FALSE, warning=FALSE}
+# remove all lists from the current workspace
+rm(list=ls(all=T))
+# load libraries
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(stringr)
+# set options
+options(stringsAsFactors = F)
+options(scipen = 999)
+options(max.print=10000)
+# define image directory
+imageDirectory<-"images"
+```
+
+Next, we load the data, remove superfluous columns, and inspect the adjectives.
+
+```{r adjampnze_3_02, echo=T, eval = T, message=FALSE, warning=FALSE}
+# load data
+reallywsc <- read.delim("datatables/ampwsc_regdat.txt", sep = "\t", header = T, skipNul = T)
+# create a really dep. variable
+reallywsc <- reallywsc %>%
+  dplyr::select(-ID, - FileSpeaker, -Speaker, -File)
+# simplify adjective
+table(reallywsc$Adjective)[order(table(reallywsc$Adjective), decreasing = T)]
+```
+
+Next, we simplify the adjectives by collapsing infrequent types and inspect the new data.
+
+```{r adjampnze_3_03, echo=T, eval = T, message=FALSE, warning=FALSE}
+freqadj <- names(table(reallywsc$Adjective))[which(table(reallywsc$Adjective) > 20)]
+#reallywsc$Adjective <- ifelse(reallywsc$Adjective %in% freqadj, reallywsc$Adjective, "other")
+# factorize variables 
+fctr <- c("Adjective", "Ethnicity", "Gender", "Education", "L1", "Age", 
+          "Function", "Priming", "SemanticCategory", "Emotionality", "really")
+reallywsc[fctr] <- lapply(reallywsc[fctr], factor)
+# inspect data
+str(reallywsc)
+```
+
+Next, we inspect Frequency.
+
+```{r adjampnze_3_04, echo=T, eval = T, message=FALSE, warning=FALSE}
+# frequency
+summary(reallywsc$Frequency)
+```
+
+Now, we scale Frequency and inspect it again.
+
+```{r adjampnze_3_05, echo=T, eval = T, message=FALSE, warning=FALSE}
+reallywsc$Frequency <- as.vector(scale(reallywsc$Frequency))
+summary(reallywsc$Frequency)
+```
+
+Next, we plot Frequency.
+
+```{r adjampnze_3_06, echo=T, eval = T, message=FALSE, warning=FALSE}
+plot(reallywsc$Frequency, reallywsc$really)
+abline(lm(reallywsc$really ~reallywsc$Frequency))
+```
+
+Next, we scale Gradability. We begin by inspecting it.
+
+```{r adjampnze_3_07, echo=T, eval = T, message=FALSE, warning=FALSE}
+# gradability
+reallywsc$Gradability <- as.vector(scale(reallywsc$Gradability-1))
+summary(reallywsc$Gradability)
+```
+
+Next, we scale Gradability. We begin by inspecting it.
+
+```{r adjampnze_3_08, echo=T, eval = T, message=FALSE, warning=FALSE}
+plot(reallywsc$Gradability, reallywsc$really)
+abline(lm(reallywsc$really ~ reallywsc$Gradability))
+```
+
+Next, we perform the Boruta analysis and begin by using only the variables that we feed to the Boruta analysis, save the data, and start a first Boruta run.
+
+```{r adjampnze_3_09, echo=T, eval = T, message=FALSE, warning=FALSE}
+# load library
+library(Boruta)
+# create dada for boruta
+borutadata <- reallywsc %>%
+  na.omit()
+# save and load data
+write.table(borutadata, "datatables/borutadata.txt", sep = "\t", 
+            col.names = T, row.names = F, quote = F)
+# run 1
+boruta.reallywsc <- Boruta(really ~.,data=borutadata)
+print(boruta.reallywsc)
+```
+
+Next, we extract the confirmed Boruta formula to see which variables are deemed important.
+
+```{r adjampnze_3_10, echo=T, eval = T, message=FALSE, warning=FALSE}
+getConfirmedFormula(boruta.reallywsc)
+```
+
+Next, we plot the results of the first Boruta run.
+
+```{r adjampnze_3_11, echo=T, eval = T, message=FALSE, warning=FALSE}
+png("images/BorutaVeryWsc.png",  width = 1800, height = 300)
+plot(boruta.reallywsc, cex = .75)
+dev.off()
+plot(boruta.reallywsc)
+```
+
+Next, we plot the history of the first Boruta run.
+
+```{r adjampnze_3_12, echo=T, eval = T, message=FALSE, warning=FALSE}
+png("images/BorutaVeryWsc_History1.png",  width = 680, height = 480)
+plotImpHistory(boruta.reallywsc)
+dev.off()
+plotImpHistory(boruta.reallywsc)
+```
+
+Next, we remove those variables that are deemed unimportant by the first Boruta run and proceed with a second run.
+
+```{r adjampnze_3_13, echo=T, eval = T, message=FALSE, warning=FALSE}
+# remove superfluous variables
+borutadata$Gradability <- NULL
+borutadata$Function <- NULL
+borutadata$Education <- NULL
+borutadata$L1 <- NULL
+# run2
+boruta.reallywsc <- Boruta(really~.,data=borutadata)
+print(boruta.reallywsc)
+```
+
+Next, we retreive the variables deemed important by the Boruta analysis by retrieving the forumla.
+
+```{r adjampnze_3_14, echo=T, eval = T, message=FALSE, warning=FALSE}
+
+getConfirmedFormula(boruta.reallywsc)
+```
+
+Next, we plot the reslts of the second Boruta run.
+
+```{r adjampnze_3_15, echo=T, eval = T, message=FALSE, warning=FALSE}
+png("images/BorutaVeryWsc2.png",  width = 1200, height = 300)
+plot(boruta.reallywsc, cex = .75)
+dev.off()
+plot(boruta.reallywsc)
+```
+
+Next, we plot the history of the second Boruta run.
+
+```{r adjampnze_3_16, echo=T, eval = T, message=FALSE, warning=FALSE}
+png("images/BorutaNSP_History2.png",  width = 680, height = 480)
+plotImpHistory(boruta.reallywsc)
+dev.off()
+plotImpHistory(boruta.reallywsc)
+```
+
+Next, we plot a publishable version of the Boruta results.
+
+```{r adjampnze_3_17, echo=T, eval = T, message=FALSE, warning=FALSE}
+png("images/BorutaVeryWsc_final.png",  width = 1500, height = 750)
+par(mar = c(22, 8, 4, 2) + 0.1)
+plot(boruta.reallywsc, cex.axis=3, las=2, xlab="", ylab = "", cex = 3, 
+     col = c(rep("grey50", 8), rep("grey90",3)))
+abline(v = 3.5, lty = "dashed")
+mtext("Predictors", 1, line = 21, at = 9, cex = 3)
+mtext("Control", 1, line = 21, at = 2, cex = 3)
+mtext("Importance", 2, line = 5, at = 25, cex = 3, las = 0)
+dev.off()
+plot(boruta.reallywsc, cex.axis=3, las=2, xlab="", ylab = "", cex = 3, 
+     col = c(rep("grey50", 8), rep("grey90",3)))
+abline(v = 3.5, lty = "dashed")
+mtext("Predictors", 1, line = 21, at = 9, cex = 3)
+mtext("Control", 1, line = 21, at = 2, cex = 3)
+mtext("Importance", 2, line = 5, at = 25, cex = 3, las = 0)
+par(mar = c(5, 4, 4, 2) + 0.1)
+```
+
+Now, we start with the regression modelling and begin by loading the packages, setting options for contarsts, and creating fixed-effects base-line models.
+
+```{r adjampnze_3_18, echo=T, eval = T, message=FALSE, warning=FALSE}
+# load library
+library(rms)
+# set options
+options(contrasts  =c("contr.treatment", "contr.poly"))
+reallywsc.dist <- datadist(reallywsc)
+options(datadist = "reallywsc.dist")
+# generate initial minimal regression model 
+m0.glm = glm(really ~ 1, family = binomial, data = reallywsc) # baseline model glm
+m0.lrm = lrm(really ~ 1, data = reallywsc, x = T, y = T) # baseline model lrm
+# inspect results
+summary(m0.glm)
+```
+
+Now, we load packages for mixed-effects modelling and create a mixed-effects base-line model.
+
+```{r adjampnze_3_19, echo=T, eval = T, message=FALSE, warning=FALSE}
+# load libraries
+library(lme4)
+library(car)
+# create model with a random intercept for token
+m0.glmer = glmer(really ~ (1|Adjective), data = reallywsc, family = binomial, 
+                  control=glmerControl(optimizer="bobyqa"))
+```
+
+Now, check if including the random effect is permitted by comparing the aic from the glm to aic from the glmer model.
+
+```{r adjampnze_3_20, echo=T, eval = T, message=FALSE, warning=FALSE}
+aic.glmer <- AIC(logLik(m0.glmer))
+aic.glm <- AIC(logLik(m0.glm))
+aic.glmer; aic.glm
+```
+
+The AIC of the glmer object is smaller which shows that including the random intercepts is justified. In addition, we test if including the random intercepts is justified statistically using a likelihood ratio test.
+
+```{r adjampnze_3_21, echo=T, eval = T, message=FALSE, warning=FALSE}
+# test random effects
+null.id = -2 * logLik(m0.glm) + 2 * logLik(m0.glmer)
+pchisq(as.numeric(null.id), df=1, lower.tail=F) 
+```
+
+The mixed-effects model (m0.glmer) has a significantly better fit than the fixed effects model (m0.glm). We continue by inspecting the results of the mixed-effects baseline model.
+
+```{r adjampnze_3_22, echo=T, eval = T, message=FALSE, warning=FALSE}
+# inspect results
+summary(m0.glmer)
+```
+
+Now, we continue with the model fitting. We use a step-wise step-up procedure with vif cutoffs of 5 for main effects and 30 for interactions. We start by adding Age.
+
+```{r adjampnze_3_23, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age
+ifelse(min(ftable(reallywsc$Age, reallywsc$really)) == 0, "not possible", "possible")
+m1.glm <- update(m0.glm, .~.+Age)
+m1.glmer <- update(m0.glmer, .~.+Age)
+anova(m0.glmer, m1.glmer, test = "Chi") 
+Anova(m1.glmer, type = "III", test = "Chi")
+```
+
+We retain Age because it is significant. We continue by adding Priming.
+
+```{r adjampnze_3_24, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming
+m2.glm <- update(m1.glm, .~.+Priming)
+max(vif(m2.glm)[,1])                                             
+m2.glmer <- update(m1.glmer, .~.+Priming)
+anova(m2.glmer, m1.glmer, test = "Chi")
+Anova(m2.glmer, type = "III", test = "Chi")
+```
+
+Although including Priming does not lead to substantial collinearity (vifs > 5) and we retain it in the model because it is  significant. We continue by adding Frequency.
+
+```{r adjampnze_3_25, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Frequency
+ifelse(min(ftable(reallywsc$Frequency, reallywsc$really)) == 0, "not possible", "possible")
+m3.glm <- update(m2.glm, .~.+Frequency)
+max(vif(m3.glm)[,1])                         
+m3.glmer <- update(m2.glmer, .~.+Frequency)
+anova(m3.glmer, m2.glmer, test = "Chi") 
+```
+
+Including Frequency does not lead to substantial collinearity (vifs > 5) but we do not retain it in the model because it is not significant. We continue by adding Gender.
+
+```{r adjampnze_3_26, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Gender
+ifelse(min(ftable(reallywsc$Gender, reallywsc$really)) == 0, "not possible", "possible")
+m4.glm <- update(m2.glm, .~.+Gender)
+max(vif(m4.glm)[,1])                                               
+m4.glmer <- update(m2.glmer, .~.+Gender)
+anova(m4.glmer, m2.glmer, test = "Chi") 
+Anova(m4.glmer, type = "III", test = "Chi")
+```
+
+Including Gender does not lead to substantial collinearity (vifs > 5) and we  retain it in the model because it is significant. We continue by adding SemanticCategory.
+
+```{r adjampnze_3_27, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add SemanticCategory
+ifelse(min(ftable(reallywsc$SemanticCategory, reallywsc$really)) == 0, "not possible", "possible")
+m5.glm <- update(m4.glm, .~.+SemanticCategory)
+max(vif(m5.glm)[,1])                                              
+m5.glmer <- update(m4.glmer, .~.+Gradability)
+anova(m5.glmer, m4.glmer, test = "Chi")   
+```
+
+Including SemanticCategory does not lead to substantial collinearity (vifs > 5) but we do not retain it in the model because it is not significant. We continue by adding Ethnicity.
+
+```{r adjampnze_3_28, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Ethnicity
+m6.glm <- update(m4.glm, .~.+Ethnicity)
+max(vif(m6.glm)[,1])                                         
+m6.glmer <- update(m4.glmer, .~.+Ethnicity)
+anova(m6.glmer, m4.glmer, test = "Chi")  
+Anova(m6.glmer, type = "III", test = "Chi")
+```
+
+Including Ethnicity does not lead to substantial collinearity (vifs > 5) and we  retain it in the model because it is significant. We continue by adding Emotionality.
+
+```{r adjampnze_3_29, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Emotionality
+ifelse(min(ftable(reallywsc$Emotionality, reallywsc$really)) == 0, "not possible", "possible")
+m7.glm <- update(m6.glm, .~.+Emotionality)
+max(vif(m7.glm)[,1])                                        
+m7.glmer <- update(m6.glmer, .~.+Emotionality)
+anova(m7.glmer, m6.glmer, test = "Chi")       
+```
+
+Including Ethnicity does not lead to substantial collinearity (vifs > 5) but we  do not retain it in the model because it is not significant. We continue with adding the two-way interactions. We start by inspecting the possible two-way interactions.
+
+```{r adjampnze_3_30, echo=T, eval = T, message=FALSE, warning=FALSE}
+# find all 2-way interactions
+library(utils)
+vars <- c("Age", "Priming", "Frequency", "Gender", "SemanticCategory", 
+          "Ethnicity",  "Emotionality")
+intac <- t(combn(vars, 2))
+intac
+```
+
+We continue by adding the interactions in a step-wise step-up manner. The cutoff for collienarity is a variance inflation factor of 30 as we expect the variable that are involved in interactions to correlate with the interaction itself and thus are more leniant comapred with main effects. We start by adding the interaction between Age and Priming.
+
+```{r adjampnze_3_31, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Priming
+ifelse(min(ftable(reallywsc$Age, reallywsc$Priming, reallywsc$really)) == 0, "not possible", "possible") 
+```
+
+Including the interaction between Age and Priming is not possible due to incomplete information. We continue by adding the interaction between Age and Frequency.
+
+```{r adjampnze_3_32, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Frequency
+m8.glm <- update(m6.glm, .~.+Age * Frequency)
+max(vif(m8.glm)[,1]) 
+m8.glmer <- update(m6.glmer, .~.+Age * Frequency)
+anova(m8.glmer, m6.glmer, test = "Chi")
+```
+
+
+Including the interaction between Age and Frequency does not lead to substantial collinearity (vifs < 30) but we do not retain it in the model because it is not significant. We continue by adding the interaction between Age and Gender.
+
+```{r adjampnze_3_33, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Gender
+ifelse(min(ftable(reallywsc$Age, reallywsc$Gender, reallywsc$really)) == 0, "not possible", "possible") 
+```
+
+Including the interaction between Age and Gender is not possible due to incomplete information and we thus continue by adding the interaction between Age and SemanticCategory.
+
+```{r adjampnze_3_34, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * SemanticCategory
+ifelse(min(ftable(reallywsc$Age, reallywsc$SemanticCategory, reallywsc$really)) == 0, "not possible", "possible") 
+```
+
+Including the interaction between Age and SemanticCategory is not possible due to incomplete information and we thus continue by adding the interaction between Age and Ethnicity.
+
+```{r adjampnze_3_35, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Ethnicity
+ifelse(min(ftable(reallywsc$Age, reallywsc$Ethnicity, reallywsc$really)) == 0, "not possible", "possible") 
+```
+
+Including the interaction between Age and Ethnicity is not possible due to incomplete information and we thus continue by adding the interaction between Age and Emotionality.
+
+```{r adjampnze_3_36, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Emotionality
+ifelse(min(ftable(reallywsc$Age, reallywsc$Emotionality, reallywsc$really)) == 0, "not possible", "possible") 
+```
+
+Including the interaction between Age and Emotionality is not possible due to incomplete information and we thus continue by adding the interaction between Priming and Frequency.
+
+```{r adjampnze_3_37, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming * Frequency
+m9.glm <- update(m6.glm, .~.+Priming * Frequency)
+max(vif(m9.glm)[,1])                                            
+m9.glmer <- update(m6.glmer, .~.+Priming * Frequency)
+anova(m9.glmer, m6.glmer, test = "Chi")
+```
+
+Including the interaction between Priming and Frequency does not lead to substantial collinearity (vifs < 30) but we  do not retain it in the model because it is not significant. We continue with adding the interaction between Priming and Gender.
+
+```{r adjampnze_3_38, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming * Gender
+ifelse(min(ftable(reallywsc$Priming, reallywsc$Gender, reallywsc$really)) == 0, "not possible", "possible") 
+m10.glm <- update(m6.glm, .~.+Priming * Gender)
+max(vif(m10.glm)[,1])
+m10.glmer <- update(m6.glmer, .~.+Priming * Gender)
+anova(m10.glmer, m6.glmer, test = "Chi")
+Anova(m10.glmer, type = "III", test = "Chi")
+```
+
+Including the interaction between Priming and Frequency does not lead to substantial collinearity (vifs < 30) but we do not retain it in the model because it is not significant. We continue with adding the interaction between Priming and SemanticCategory.
+
+```{r adjampnze_3_39, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming * SemanticCategory
+ifelse(min(ftable(reallywsc$Priming, reallywsc$SemanticCategory, reallywsc$really)) == 0, "not possible", "possible") 
+```
+
+Including the interaction between Priming and SemanticCategory is not possible due to incomplete information and we thus continue by adding the interaction between Priming and Ethnicity.
+
+```{r adjampnze_3_40, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming * Ethnicity
+ifelse(min(ftable(reallywsc$Priming, reallywsc$Ethnicity, reallywsc$really)) == 0, "not possible", "possible") 
+m11.glm <- update(m6.glm, .~.+Priming * Ethnicity)
+max(vif(m11.glm)[,1])
+m11.glmer <- update(m6.glmer, .~.+Priming * Ethnicity)
+anova(m11.glmer, m6.glmer, test = "Chi")
+```
+
+Including the interaction between Priming and Ethnicity does not lead to substantial collinearity (vifs < 30) but we  do not retain it in the model because it is not significant. We continue with adding the interaction between Priming and SemanticCategory.
+
+```{r adjampnze_3_41, echo=T, eval = T, message=FALSE, warning=FALSE}
+ifelse(min(ftable(reallywsc$Priming, reallywsc$SemanticCategory, reallywsc$really)) == 0, "not possible", "possible") 
+```
+
+Including the interaction between Priming and Ethnicity is not possible due to incomplete information and we thus continue by adding the interaction between Priming and Emotionality.
+
+```{r adjampnze_3_42, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming * Emotionality
+ifelse(min(ftable(reallywsc$Priming, reallywsc$Emotionality, reallywsc$really)) == 0, "not possible", "possible")
+m12.glm <- update(m6.glm, .~.+Priming * Emotionality)
+max(vif(m12.glm)[,1])
+m12.glmer <- update(m6.glmer, .~.+Priming * Emotionality)
+anova(m12.glmer, m6.glmer, test = "Chi")
+```
+
+Including the interaction between Priming and Emotionality  does not lead to substantial collinearity (vifs < 30) but we  do not retain it in the model because it is not significant. We continue with adding the interaction between Frequency and Gender.
+
+```{r adjampnze_3_43, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Frequency * Gender
+m13.glm <- update(m6.glm, .~.+Frequency * Gender)
+max(vif(m13.glm)[,1])
+m13.glmer <- update(m6.glmer, .~.+Frequency * Gender)
+anova(m13.glmer, m6.glmer, test = "Chi")
+```
+
+Including the interaction between Frequency and Gender does not lead to substantial collinearity (vifs < 30) but we  do not retain it in the model because it is not significant. We continue with adding the interaction between Frequency and SemanticCategory.
+
+```{r adjampnze_3_44, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Frequency * SemanticCategory
+m14.glm <- update(m6.glm, .~.+Frequency * SemanticCategory)
+max(vif(m14.glm)[,1])                                           
+```
+
+Including the interaction between Frequency and SemanticCategory leads to unacceptable collinearity (vifs > 100) and we thus do not retain it in the model. We continue with adding the interaction between Frequency and Ethnicity.
+
+```{r adjampnze_3_45, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Frequency * Ethnicity
+m15.glm <- update(m6.glm, .~.+Frequency * Ethnicity)
+max(vif(m15.glm)[,1])                                         
+m15.glmer <- update(m6.glmer, .~.+Frequency * Ethnicity)
+anova(m15.glmer, m6.glmer, test = "Chi") 
+```
+
+Including the interaction between Frequency and Ethnicity does not lead to substantial collinearity (vifs < 30) but we  do not retain it in the model because it is not significant. We continue with adding the interaction between Frequency and Emotionality
+
+```{r adjampnze_3_46, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Frequency * Emotionality 
+m16.glm <- update(m6.glm, .~.+Frequency * Emotionality)
+max(vif(m16.glm)[,1])                                        
+m16.glmer <- update(m6.glmer, .~.+Frequency * Emotionality)
+anova(m16.glmer, m6.glmer, test = "Chi")
+```
+
+Including the interaction between Frequency and Emotionality does not lead to substantial collinearity (vifs < 30) but we  do not retain it in the model because it is not significant. We continue with adding the interaction between Gender and SemanticCategory.
+
+```{r adjampnze_3_47, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Gender * SemanticCategory
+ifelse(min(ftable(reallywsc$Gender, reallywsc$SemanticCategory, reallywsc$really)) == 0, "not possible", "possible")
+m17.glm <- update(m6.glm, .~.+Gender * SemanticCategory)
+max(vif(m17.glm)[,1])                                        
+```
+
+Including the interaction between Gender and SemanticCategory leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with adding the interaction between Gender and SemanticCategory.
+
+```{r adjampnze_3_48, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Gender * Ethnicity
+ifelse(min(ftable(reallywsc$Gender, reallywsc$Ethnicity, reallywsc$really)) == 0, "not possible", "possible")
+m18.glm <- update(m6.glm, .~.+Gender * Ethnicity)
+max(vif(m18.glm)[,1])  
+```
+
+Including the interaction between Gender and Ethnicity leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with adding the interaction between Gender and Emotionality.
+
+```{r adjampnze_3_49, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Gender * Emotionality
+ifelse(min(ftable(reallywsc$Gender, reallywsc$Emotionality, reallywsc$really)) == 0, "not possible", "possible")
+m19.glm <- update(m6.glm, .~.+Gender * Emotionality)
+max(vif(m19.glm)[,1])
+m19.glmer <- update(m6.glmer, .~.+Gender * Emotionality)
+anova(m19.glmer, m6.glmer, test = "Chi")
+```
+
+Including the interaction between Gender and Emotionality does not lead to substantial collinearity (vifs < 30) but we  do not retain it in the model because it is not significant. We continue with  adding the interaction between Gender and Emotionality.
+
+```{r adjampnze_3_50, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add SemanticCategory * Ethnicity
+ifelse(min(ftable(reallywsc$SemanticCategory, reallywsc$Ethnicity, reallywsc$really)) == 0, "not possible", "possible")
+```
+
+Including the interaction between SemanticCategory and Ethnicity is not possible due to incomplete information and we thus continue by adding the interaction between SemanticCategory and Emotionality.
+
+```{r adjampnze_3_51, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add SemanticCategory * Emotionality
+ifelse(min(ftable(reallywsc$SemanticCategory, reallywsc$Emotionality, reallywsc$really)) == 0, "not possible", "possible")
+```
+
+Including the interaction between SemanticCategory and Emotionality is not possible due to incomplete information and we thus continue by adding the interaction between Ethnicity and Emotionality.
+
+```{r adjampnze_3_52, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Ethnicity * Emotionality
+ifelse(min(ftable(reallywsc$Ethnicity, reallywsc$Emotionality, reallywsc$really)) == 0, "not possible", "possible")
+m20.glm <- update(m6.glm, .~.+Ethnicity * Emotionality)
+max(vif(m20.glm)[,1])
+```
+
+Including the interaction between SemanticCategory and Emotionality leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model.
+
+We continue with adding the two-way interactions. We start by inspecting the possible two-way interactions.
+
+```{r adjampnze_3_53, echo=T, eval = T, message=FALSE, warning=FALSE}
+# find all 2-way interactions
+library(utils)
+vars <- c("Age", "Priming", "Frequency", "Gender", "SemanticCategory", 
+          "Ethnicity",  "Emotionality")
+intac <- t(combn(vars, 3))
+intac
+```
+
+Check which of these interactions can be tested.
+
+```{r adjampnze_3_54, echo=T, eval = T, message=FALSE, warning=FALSE}
+AgePrimingFrequency <- ifelse(min(ftable(reallywsc$Age, reallywsc$Priming, reallywsc$Frequency)) == 0, "not possible", "possible")
+AgePrimingGender <- ifelse(min(ftable(reallywsc$Age, reallywsc$Priming, reallywsc$Gender)) == 0, "not possible", "possible")
+AgePrimingSemanticCategory <- ifelse(min(ftable(reallywsc$Age, reallywsc$Priming, reallywsc$SemanticCategory)) == 0, "not possible", "possible")
+AgePrimingEthnicity <- ifelse(min(ftable(reallywsc$Age, reallywsc$Priming, reallywsc$Ethnicity)) == 0, "not possible", "possible")
+AgePrimingEmotionality <- ifelse(min(ftable(reallywsc$Age, 
+reallywsc$Priming, reallywsc$Emotionality)) == 0, "not possible", "possible")
+AgeFrequencyGender <- ifelse(min(ftable(reallywsc$Age, reallywsc$Frequency, reallywsc$Gender)) == 0, "not possible", "possible")
+AgeFrequencySemanticCategory <- ifelse(min(ftable(reallywsc$Age, reallywsc$Frequency, reallywsc$SemanticCategory)) == 0, "not possible", "possible")
+AgeFrequencyEthnicity <- ifelse(min(ftable(reallywsc$Age, reallywsc$Frequency, reallywsc$Ethnicity)) == 0, "not possible", "possible")
+AgeFrequencyEmotionality <- ifelse(min(ftable(reallywsc$Age, reallywsc$Frequency, reallywsc$Emotionality)) == 0, "not possible", "possible")
+AgeGenderSemanticCategory <- ifelse(min(ftable(reallywsc$Age, reallywsc$Gender, reallywsc$SemanticCategory)) == 0, "not possible", "possible")
+AgeGenderEthnicity <- ifelse(min(ftable(reallywsc$Age, reallywsc$Gender, reallywsc$Ethnicity)) == 0, "not possible", "possible")
+AgeGenderEmotionality <- ifelse(min(ftable(reallywsc$Age, reallywsc$Gender, reallywsc$Emotionality)) == 0, "not possible", "possible")
+AgeSemanticCategoryEthnicity <- ifelse(min(ftable(reallywsc$Age, reallywsc$SemanticCategory, reallywsc$Ethnicity)) == 0, "not possible", "possible")
+AgeSemanticCategoryEmotionality <- ifelse(min(ftable(reallywsc$Age, reallywsc$SemanticCategory, reallywsc$Emotionality)) == 0, "not possible", "possible")
+AgeEthnicityEmotionality <- ifelse(min(ftable(reallywsc$Age, reallywsc$Ethnicity, reallywsc$Emotionality)) == 0, "not possible", "possible")
+PrimingFrequencyGender <- ifelse(min(ftable(reallywsc$Priming, reallywsc$Frequency, reallywsc$Gender)) == 0, "not possible", "possible")
+PrimingFrequencySemanticCategory <- ifelse(min(ftable(reallywsc$Priming, reallywsc$Frequency, reallywsc$SemanticCategory)) == 0, "not possible", "possible")
+PrimingFrequencyEthnicity <- ifelse(min(ftable(reallywsc$Priming, reallywsc$Frequency, reallywsc$Ethnicity)) == 0, "not possible", "possible")
+PrimingFrequencyEmotionality <- ifelse(min(ftable(reallywsc$Priming, reallywsc$Frequency, reallywsc$Emotionality)) == 0, "not possible", "possible")
+PrimingGenderSemanticCategory <- ifelse(min(ftable(reallywsc$Priming, reallywsc$Gender, reallywsc$SemanticCategory)) == 0, "not possible", "possible")
+PrimingGenderEthnicity <- ifelse(min(ftable(reallywsc$Priming, reallywsc$Gender, reallywsc$Ethnicity)) == 0, "not possible", "possible")
+PrimingGenderEmotionality <- ifelse(min(ftable(reallywsc$Priming, reallywsc$Gender, reallywsc$Emotionality)) == 0, "not possible", "possible")
+PrimingSemanticCategoryEthnicity <- ifelse(min(ftable(reallywsc$Priming, reallywsc$SemanticCategory, reallywsc$Ethnicity)) == 0, "not possible", "possible")
+PrimingSemanticCategoryEmotionality <- ifelse(min(ftable(reallywsc$Priming, reallywsc$SemanticCategory, reallywsc$Emotionality)) == 0, "not possible", "possible")
+PrimingEthnicityEmotionality <- ifelse(min(ftable(reallywsc$Priming, reallywsc$Ethnicity, reallywsc$Emotionality)) == 0, "not possible", "possible")
+FrequencyGenderSemanticCategory <- ifelse(min(ftable(reallywsc$Frequency, reallywsc$Gender, reallywsc$SemanticCategory)) == 0, "not possible", "possible")
+FrequencyGenderEthnicity <- ifelse(min(ftable(reallywsc$Frequency, reallywsc$Gender, reallywsc$Ethnicity)) == 0, "not possible", "possible")
+FrequencyGenderEmotionality <- ifelse(min(ftable(reallywsc$Frequency, reallywsc$Gender, reallywsc$Emotionality)) == 0, "not possible", "possible")
+FrequencySemanticCategoryEthnicity <- ifelse(min(ftable(reallywsc$Frequency, reallywsc$SemanticCategory, reallywsc$Ethnicity)) == 0, "not possible", "possible")
+FrequencySemanticCategoryEmotionality <- ifelse(min(ftable(reallywsc$Frequency, reallywsc$SemanticCategory, reallywsc$Emotionality)) == 0, "not possible", "possible")
+FrequencyEthnicityEmotionality <- ifelse(min(ftable(reallywsc$Frequency, reallywsc$Ethnicity, reallywsc$Emotionality)) == 0, "not possible", "possible")
+GenderSemanticCategoryEthnicity <- ifelse(min(ftable(reallywsc$Gender, reallywsc$SemanticCategory, reallywsc$Ethnicity)) == 0, "not possible", "possible")
+GenderSemanticCategoryEmotionality <- ifelse(min(ftable(reallywsc$Gender, reallywsc$SemanticCategory, reallywsc$Emotionality)) == 0, "not possible", "possible")
+GenderEthnicityEmotionality <- ifelse(min(ftable(reallywsc$Gender, reallywsc$Ethnicity, reallywsc$Emotionality)) == 0, "not possible", "possible")
+SemanticCategoryEthnicityEmotionality <- ifelse(min(ftable(reallywsc$SemanticCategory, reallywsc$Ethnicity, reallywsc$Emotionality)) == 0, "not possible", "possible")
+```
+
+```{r adjampnze_3_55, echo=T, eval = T, message=FALSE, warning=FALSE}
+AgePrimingFrequency
+AgePrimingGender
+AgePrimingSemanticCategory
+AgePrimingEthnicity
+AgePrimingEmotionality
+AgeFrequencyGender
+AgeFrequencySemanticCategory
+AgeFrequencyEthnicity
+AgeFrequencyEmotionality
+AgeGenderSemanticCategory
+AgeGenderEthnicity
+AgeGenderEmotionality
+AgeSemanticCategoryEthnicity
+AgeSemanticCategoryEmotionality
+AgeEthnicityEmotionality
+PrimingFrequencyGender
+PrimingFrequencySemanticCategory
+PrimingFrequencyEthnicity
+PrimingFrequencyEmotionality
+PrimingGenderSemanticCategory
+PrimingGenderEthnicity
+PrimingGenderEmotionality
+PrimingSemanticCategoryEthnicity
+PrimingSemanticCategoryEmotionality
+PrimingEthnicityEmotionality
+FrequencyGenderSemanticCategory
+FrequencyGenderEthnicity
+FrequencyGenderEmotionality
+FrequencySemanticCategoryEthnicity
+FrequencySemanticCategoryEmotionality
+FrequencyEthnicityEmotionality
+GenderSemanticCategoryEthnicity
+GenderSemanticCategoryEmotionality
+GenderEthnicityEmotionality
+SemanticCategoryEthnicityEmotionality
+```
+
+Possible combinations are:
+* AgePrimingGender
+* AgePrimingEmotionality	
+* AgeGenderEmotionality
+* PrimingGenderEthnicity		
+* PrimingGenderEmotionality
+* GenderEthnicityEmotionality
+
+We continue by adding the interactions in a step-wise step-up manner. The cutoff for collienarity is a variance inflation factor of 30 as we expect the variable that are involved in interactions to correlate with the interaction itself and thus are more leniant comapred with main effects. We start by adding the interaction between Age, Priming, and Gender.
+
+```{r adjampnze_3_56, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Priming * Gender
+m21.glm <- update(m6.glm, .~.+Age * Priming * Gender)
+max(vif(m21.glm)[,1])
+```
+
+Including the interaction between Age, Priming, and Gender leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with  adding the interaction between Age, Priming, and Emotionality.
+
+```{r adjampnze_3_57, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Priming * Emotionality
+m22.glm <- update(m6.glm, .~.+Age * Priming * Emotionality)
+max(vif(m22.glm)[,1])
+```
+
+Including the interaction between Age, Priming, and Emotionality leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with  adding the interaction between Age, Gender, and Emotionality.
+
+```{r adjampnze_3_58, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Gender * Emotionality
+m23.glm <- update(m6.glm, .~.+Age * Priming * Emotionality)
+max(vif(m23.glm)[,1])
+```
+
+Including the interaction between Age, Gender, and Emotionality leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with  adding the interaction between Age, Gender, and Emotionality.
+
+```{r adjampnze_3_59, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Gender * Emotionality
+m23.glm <- update(m6.glm, .~.+Age * Gender * Emotionality)
+max(vif(m23.glm)[,1])
+```
+
+Including the interaction between Age, Gender, and Emotionality leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with  adding the interaction between Priming, Gender, and Ethnicity.
+
+```{r adjampnze_3_60, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming * Gender * Ethnicity
+m24.glm <- update(m6.glm, .~.+Priming * Gender * Ethnicity)
+max(vif(m24.glm)[,1])
+```
+
+Including the interaction between Priming, Gender, and Ethnicity leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with  adding the interaction between Priming, Gender, and Emotionality.
+
+```{r adjampnze_3_61, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming * Gender * Emotionality.
+m25.glm <- update(m6.glm, .~.+Priming * Gender * Emotionality)
+max(vif(m25.glm)[,1])
+```
+
+Including the interaction between Priming, Gender, and Emotionality leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with  adding the interaction between Gender, Ethnicity, and Emotionality.
+
+```{r adjampnze_3_62, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Gender * Ethnicity * Emotionality
+m26.glm <- update(m6.glm, .~.+Gender * Ethnicity * Emotionality)
+max(vif(m26.glm)[,1])
+```
+
+Including the interaction between Gender, Ethnicity, and Emotionality leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with inspecting the final model.
+
+```{r adjampnze_3_63, echo=T, eval = T, message=FALSE, warning=FALSE}
+summary(m6.glmer)
+```
+
+
+Including the interaction between Priming and L1 does not cause high vifs but it does not significantly improve the model fit which is why we do not retain it in the model. We have arrived at a first minimal adequate model and we can now diagnose the mdoel and test if we need to remove data points.
+
+We begin the diagnostics with visualizing residuals.
+
+```{r reallynze_64, echo=T, eval = T, message=FALSE, warning=FALSE}
+par(mfrow = c(1, 4))   # display plots in 3 rows and 2 columns
+plot(m6.glmer, col = "black", pch = 20); par(mfrow = c(1, 1))
+```
+
+We now plot Cook's distance to check if we need to remove data points and include a data-driven cutoff threshold (which is likely too low).
+
+```{r reallynze_65, echo=T, eval = T, message=FALSE, warning=FALSE}
+# determine a cutoff for data points that have D-values higher than 4/(n-k-1) 
+cutoff <- 4/((nrow(reallywsc)-length(coefficients(m6.glm)-2)))
+# plot cook*s distance
+plot(m6.glm, which=4, cook.levels = cutoff) 
+abline(h = cutoff, col = "red", lty = "dotted")
+```
+
+The Cook's distance plot shows that at least the three named data points (and three high but unnamed data points) should be removed and that the data-driven cutoff threshold was indeed to low. Thus, we adapt the cutoff manually to 0.02.
+
+We continue the diagnostics using the glm model and visualizing its residuals.
+
+```{r reallynze_66, echo=T, eval = T, message=FALSE, warning=FALSE}
+cutoff <- 0.02
+# start plotting
+par(mfrow = c(1, 4)) 
+plot(m6.glm); par(mfrow = c(1, 4))
+```
+
+The diagnostics show that the data do not fit the assumptions of the model really well but there is not much we can do except removing outliers. We will do this and rerun the analysis.
+
+```{r reallynze_67, echo=T, eval = T, message=FALSE, warning=FALSE}
+reallywsc$cooksdistance <- cooks.distance(m6.glm)
+reallywscnew <- reallywsc[-(which(reallywsc$cooksdistance > cutoff)),]
+# save new data set to disc
+write.table(reallywscnew, "datatables/reallywscnew.txt", row.names= F, sep = "\t")
+nrow(reallywsc); nrow(reallywscnew)
+```
+
+We have now deleted the three outliers but we will check if other points lie outside if the maually adapted cutoff.
+
+```{r reallynze_68, echo=T, eval = T, message=FALSE, warning=FALSE}
+(which(reallywscnew$cooksdistance > cutoff))
+```
+
+There are no more data points with Cook's diance values above the cutoff in the data. 
+
+We begin the rerun of the model fitting by setting options and creating intercept-only base-line models. 
+
+```{r adjampnze_3_69, echo=T, eval = T, message=FALSE, warning=FALSE}
+# load library
+library(rms)
+# set options
+options(contrasts  =c("contr.treatment", "contr.poly"))
+reallywscnew.dist <- datadist(reallywscnew)
+options(datadist = "reallywscnew.dist")
+# generate initial minimal regression model 
+m0.glm = glm(really ~ 1, family = binomial, data = reallywscnew) # baseline model glm
+m0.lrm = lrm(really ~ 1, data = reallywscnew, x = T, y = T) # baseline model lrm
+# inspect results
+summary(m0.glm)
+```
+
+Now, we load packages for mixed-effects modelling and create a mixed-effects base-line model.
+
+```{r adjampnze_3_70, echo=T, eval = T, message=FALSE, warning=FALSE}
+# load libraries
+library(lme4)
+library(car)
+# create model with a random intercept for token
+m0.glmer = glmer(really ~ (1|Adjective), data = reallywscnew, 
+                 family = binomial,
+                 control=glmerControl(optimizer="bobyqa"))
+```
+
+Now, check if including the random effect is permitted by comparing the aic from the glm to aic from the glmer model.
+
+```{r adjampnze_3_71, echo=T, eval = T, message=FALSE, warning=FALSE}
+aic.glmer <- AIC(logLik(m0.glmer))
+aic.glm <- AIC(logLik(m0.glm))
+aic.glmer; aic.glm
+```
+
+The AIC of the glmer object is smaller which shows that including the random intercepts is justified. In addition, we test if including the random intercepts is justified statistically using a likelihood ratio test.
+
+```{r adjampnze_3_72, echo=T, eval = T, message=FALSE, warning=FALSE}
+# test random effects
+null.id = -2 * logLik(m0.glm) + 2 * logLik(m0.glmer)
+pchisq(as.numeric(null.id), df=1, lower.tail=F) 
+```
+
+The mixed-effects model (m0.glmer) has a significantly better fit than the fixed effects model (m0.glm). We continue by inspecting the results of the mixed-effects baseline model.
+
+```{r adjampnze_3_73, echo=T, eval = T, message=FALSE, warning=FALSE}
+# inspect results
+summary(m0.glmer)
+```
+
+Now, we continue with the model fitting. We use a step-wise step-up procedure with vif cutoffs of 5 for main effects and 30 for interactions. We start by adding Age.
+
+```{r adjampnze_3_74, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age
+ifelse(min(ftable(reallywscnew$Age, reallywscnew$really)) == 0, "not possible", "possible")
+m1.glm <- update(m0.glm, .~.+Age)
+m1.glmer <- update(m0.glmer, .~.+Age)
+anova(m0.glmer, m1.glmer, test = "Chi") 
+Anova(m1.glmer, type = "III", test = "Chi")
+```
+
+We retain Age because it is significant. We continue by adding Priming.
+
+```{r adjampnze_3_75, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming
+m2.glm <- update(m1.glm, .~.+Priming)
+max(vif(m2.glm)[,1])                                             
+m2.glmer <- update(m1.glmer, .~.+Priming)
+anova(m2.glmer, m1.glmer, test = "Chi")
+Anova(m2.glmer, type = "III", test = "Chi")
+```
+
+Although including Priming does not lead to substantial collinearity (vifs > 5) and we retain it in the model because it is  significant. We continue by adding Frequency.
+
+```{r adjampnze_3_76, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Frequency
+ifelse(min(ftable(reallywscnew$Frequency, reallywscnew$really)) == 0, "not possible", "possible")
+m3.glm <- update(m2.glm, .~.+Frequency)
+max(vif(m3.glm)[,1])                         
+m3.glmer <- update(m2.glmer, .~.+Frequency)
+anova(m3.glmer, m2.glmer, test = "Chi") 
+```
+
+Including Frequency does not lead to substantial collinearity (vifs > 5) but we do not retain it in the model because it is not significant. We continue by adding Gender.
+
+```{r adjampnze_3_77, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Gender
+ifelse(min(ftable(reallywscnew$Gender, reallywscnew$really)) == 0, "not possible", "possible")
+m4.glm <- update(m2.glm, .~.+Gender)
+max(vif(m4.glm)[,1])                                               
+m4.glmer <- update(m2.glmer, .~.+Gender)
+anova(m4.glmer, m2.glmer, test = "Chi") 
+Anova(m4.glmer, type = "III", test = "Chi")
+```
+
+Including Gender does not lead to substantial collinearity (vifs > 5) and we  retain it in the model because it is significant. We continue by adding SemanticCategory.
+
+```{r adjampnze_3_78, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add SemanticCategory
+ifelse(min(ftable(reallywscnew$SemanticCategory, reallywscnew$really)) == 0, "not possible", "possible")
+m5.glm <- update(m4.glm, .~.+SemanticCategory)
+max(vif(m5.glm)[,1])                                              
+m5.glmer <- update(m4.glmer, .~.+Gradability)
+anova(m5.glmer, m4.glmer, test = "Chi")   
+```
+
+Including SemanticCategory does not lead to substantial collinearity (vifs > 5) but we do not retain it in the model because it is not significant. We continue by adding Ethnicity.
+
+```{r adjampnze_3_79, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Ethnicity
+m6.glm <- update(m4.glm, .~.+Ethnicity)
+max(vif(m6.glm)[,1])                                         
+m6.glmer <- update(m4.glmer, .~.+Ethnicity)
+anova(m6.glmer, m4.glmer, test = "Chi")  
+Anova(m6.glmer, type = "III", test = "Chi")
+```
+
+Including Ethnicity does not lead to substantial collinearity (vifs > 5) and we  retain it in the model because it is significant. We continue by adding Emotionality.
+
+```{r adjampnze_3_80, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Emotionality
+ifelse(min(ftable(reallywscnew$Emotionality, reallywscnew$really)) == 0, "not possible", "possible")
+m7.glm <- update(m6.glm, .~.+Emotionality)
+max(vif(m7.glm)[,1])                                        
+m7.glmer <- update(m6.glmer, .~.+Emotionality)
+anova(m7.glmer, m6.glmer, test = "Chi")       
+```
+
+Including Ethnicity does not lead to substantial collinearity (vifs > 5) but we  do not retain it in the model because it is not significant. We continue with adding the two-way interactions. We start by inspecting the possible two-way interactions.
+
+```{r adjampnze_3_81, echo=T, eval = T, message=FALSE, warning=FALSE}
+# find all 2-way interactions
+library(utils)
+vars <- c("Age", "Priming", "Frequency", "Gender", "SemanticCategory", 
+          "Ethnicity",  "Emotionality")
+intac <- t(combn(vars, 2))
+intac
+```
+
+We continue by adding the interactions in a step-wise step-up manner. The cutoff for collienarity is a variance inflation factor of 30 as we expect the variable that are involved in interactions to correlate with the interaction itself and thus are more leniant comapred with main effects. We start by adding the interaction between Age and Priming.
+
+```{r adjampnze_3_82, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Priming
+ifelse(min(ftable(reallywscnew$Age, reallywscnew$Priming, reallywscnew$really)) == 0, "not possible", "possible") 
+```
+
+Including the interaction between Age and Priming is not possible due to incomplete information. We continue by adding the interaction between Age and Frequency.
+
+```{r adjampnze_3_83, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Frequency
+m8.glm <- update(m6.glm, .~.+Age * Frequency)
+max(vif(m8.glm)[,1]) 
+m8.glmer <- update(m6.glmer, .~.+Age * Frequency)
+anova(m8.glmer, m6.glmer, test = "Chi")
+```
+
+
+Including the interaction between Age and Frequency does not lead to substantial collinearity (vifs < 30) but we do not retain it in the model because it is not significant. We continue by adding the interaction between Age and Gender.
+
+```{r adjampnze_3_84, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Gender
+ifelse(min(ftable(reallywscnew$Age, reallywscnew$Gender, reallywscnew$really)) == 0, "not possible", "possible") 
+```
+
+Including the interaction between Age and Gender is not possible due to incomplete information and we thus continue by adding the interaction between Age and SemanticCategory.
+
+```{r adjampnze_3_85, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * SemanticCategory
+ifelse(min(ftable(reallywscnew$Age, reallywscnew$SemanticCategory, reallywscnew$really)) == 0, "not possible", "possible") 
+```
+
+Including the interaction between Age and SemanticCategory is not possible due to incomplete information and we thus continue by adding the interaction between Age and Ethnicity.
+
+```{r adjampnze_3_86, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Ethnicity
+ifelse(min(ftable(reallywscnew$Age, reallywscnew$Ethnicity, reallywscnew$really)) == 0, "not possible", "possible") 
+```
+
+Including the interaction between Age and Ethnicity is not possible due to incomplete information and we thus continue by adding the interaction between Age and Emotionality.
+
+```{r adjampnze_3_87, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Emotionality
+ifelse(min(ftable(reallywscnew$Age, reallywscnew$Emotionality, reallywscnew$really)) == 0, "not possible", "possible") 
+```
+
+Including the interaction between Age and Emotionality is not possible due to incomplete information and we thus continue by adding the interaction between Priming and Frequency.
+
+```{r adjampnze_3_88, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming * Frequency
+m9.glm <- update(m6.glm, .~.+Priming * Frequency)
+max(vif(m9.glm)[,1])                                            
+m9.glmer <- update(m6.glmer, .~.+Priming * Frequency)
+anova(m9.glmer, m6.glmer, test = "Chi")
+```
+
+Including the interaction between Priming and Frequency does not lead to substantial collinearity (vifs < 30) but we  do not retain it in the model because it is not significant. We continue with adding the interaction between Priming and Gender.
+
+```{r adjampnze_3_89, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming * Gender
+ifelse(min(ftable(reallywscnew$Priming, reallywscnew$Gender, reallywscnew$really)) == 0, "not possible", "possible") 
+m10.glm <- update(m6.glm, .~.+Priming * Gender)
+max(vif(m10.glm)[,1])
+m10.glmer <- update(m6.glmer, .~.+Priming * Gender)
+anova(m10.glmer, m6.glmer, test = "Chi")
+Anova(m10.glmer, type = "III", test = "Chi")
+```
+
+Including the interaction between Priming and Frequency does not lead to substantial collinearity (vifs < 30) but we do not retain it in the model because it is not significant. We continue with adding the interaction between Priming and SemanticCategory.
+
+```{r adjampnze_3_90, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming * SemanticCategory
+ifelse(min(ftable(reallywscnew$Priming, reallywscnew$SemanticCategory, reallywscnew$really)) == 0, "not possible", "possible") 
+```
+
+Including the interaction between Priming and SemanticCategory is not possible due to incomplete information and we thus continue by adding the interaction between Priming and Ethnicity.
+
+```{r adjampnze_3_91, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming * Ethnicity
+ifelse(min(ftable(reallywscnew$Priming, reallywscnew$Ethnicity, reallywscnew$really)) == 0, "not possible", "possible") 
+m11.glm <- update(m6.glm, .~.+Priming * Ethnicity)
+max(vif(m11.glm)[,1])
+m11.glmer <- update(m6.glmer, .~.+Priming * Ethnicity)
+anova(m11.glmer, m6.glmer, test = "Chi")
+```
+
+Including the interaction between Priming and Ethnicity does not lead to substantial collinearity (vifs < 30) but we  do not retain it in the model because it is not significant. We continue with adding the interaction between Priming and SemanticCategory.
+
+```{r adjampnze_3_92, echo=T, eval = T, message=FALSE, warning=FALSE}
+ifelse(min(ftable(reallywscnew$Priming, reallywscnew$SemanticCategory, reallywscnew$really)) == 0, "not possible", "possible") 
+```
+
+Including the interaction between Priming and Ethnicity is not possible due to incomplete information and we thus continue by adding the interaction between Priming and Emotionality.
+
+```{r adjampnze_3_93, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming * Emotionality
+ifelse(min(ftable(reallywscnew$Priming, reallywscnew$Emotionality, reallywscnew$really)) == 0, "not possible", "possible")
+m12.glm <- update(m6.glm, .~.+Priming * Emotionality)
+max(vif(m12.glm)[,1])
+m12.glmer <- update(m6.glmer, .~.+Priming * Emotionality)
+anova(m12.glmer, m6.glmer, test = "Chi")
+```
+
+Including the interaction between Priming and Emotionality  does not lead to substantial collinearity (vifs < 30) but we  do not retain it in the model because it is not significant. We continue with adding the interaction between Frequency and Gender.
+
+```{r adjampnze_3_94, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Frequency * Gender
+m13.glm <- update(m6.glm, .~.+Frequency * Gender)
+max(vif(m13.glm)[,1])
+m13.glmer <- update(m6.glmer, .~.+Frequency * Gender)
+anova(m13.glmer, m6.glmer, test = "Chi")
+```
+
+Including the interaction between Frequency and Gender does not lead to substantial collinearity (vifs < 30) but we  do not retain it in the model because it is not significant. We continue with adding the interaction between Frequency and SemanticCategory.
+
+```{r adjampnze_3_95, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Frequency * SemanticCategory
+m14.glm <- update(m6.glm, .~.+Frequency * SemanticCategory)
+max(vif(m14.glm)[,1])                                           
+```
+
+Including the interaction between Frequency and SemanticCategory leads to unacceptable collinearity (vifs > 100) and we thus do not retain it in the model. We continue with adding the interaction between Frequency and Ethnicity.
+
+```{r adjampnze_3_96, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Frequency * Ethnicity
+m15.glm <- update(m6.glm, .~.+Frequency * Ethnicity)
+max(vif(m15.glm)[,1])                                         
+m15.glmer <- update(m6.glmer, .~.+Frequency * Ethnicity)
+anova(m15.glmer, m6.glmer, test = "Chi") 
+```
+
+Including the interaction between Frequency and Ethnicity does not lead to substantial collinearity (vifs < 30) but we  do not retain it in the model because it is not significant. We continue with adding the interaction between Frequency and Emotionality
+
+```{r adjampnze_3_97, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Frequency * Emotionality 
+m16.glm <- update(m6.glm, .~.+Frequency * Emotionality)
+max(vif(m16.glm)[,1])                                        
+m16.glmer <- update(m6.glmer, .~.+Frequency * Emotionality)
+anova(m16.glmer, m6.glmer, test = "Chi")
+```
+
+Including the interaction between Frequency and Emotionality does not lead to substantial collinearity (vifs < 30) but we  do not retain it in the model because it is not significant. We continue with adding the interaction between Gender and SemanticCategory.
+
+```{r adjampnze_3_98, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Gender * SemanticCategory
+ifelse(min(ftable(reallywscnew$Gender, reallywscnew$SemanticCategory, reallywscnew$really)) == 0, "not possible", "possible")
+m17.glm <- update(m6.glm, .~.+Gender * SemanticCategory)
+max(vif(m17.glm)[,1])                                        
+```
+
+Including the interaction between Gender and SemanticCategory leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with adding the interaction between Gender and SemanticCategory.
+
+```{r adjampnze_3_99, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Gender * Ethnicity
+ifelse(min(ftable(reallywscnew$Gender, reallywscnew$Ethnicity, reallywscnew$really)) == 0, "not possible", "possible")
+m18.glm <- update(m6.glm, .~.+Gender * Ethnicity)
+max(vif(m18.glm)[,1])  
+```
+
+Including the interaction between Gender and Ethnicity leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with adding the interaction between Gender and Emotionality.
+
+```{r adjampnze_3_100, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Gender * Emotionality
+ifelse(min(ftable(reallywscnew$Gender, reallywscnew$Emotionality, reallywscnew$really)) == 0, "not possible", "possible")
+m19.glm <- update(m6.glm, .~.+Gender * Emotionality)
+max(vif(m19.glm)[,1])
+m19.glmer <- update(m6.glmer, .~.+Gender * Emotionality)
+anova(m19.glmer, m6.glmer, test = "Chi")
+```
+
+Including the interaction between Gender and Emotionality does not lead to substantial collinearity (vifs < 30) but we  do not retain it in the model because it is not significant. We continue with  adding the interaction between Gender and Emotionality.
+
+```{r adjampnze_3_101, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add SemanticCategory * Ethnicity
+ifelse(min(ftable(reallywscnew$SemanticCategory, reallywscnew$Ethnicity, reallywscnew$really)) == 0, "not possible", "possible")
+```
+
+Including the interaction between SemanticCategory and Ethnicity is not possible due to incomplete information and we thus continue by adding the interaction between SemanticCategory and Emotionality.
+
+```{r adjampnze_3_102, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add SemanticCategory * Emotionality
+ifelse(min(ftable(reallywscnew$SemanticCategory, reallywscnew$Emotionality, reallywscnew$really)) == 0, "not possible", "possible")
+```
+
+Including the interaction between SemanticCategory and Emotionality is not possible due to incomplete information and we thus continue by adding the interaction between Ethnicity and Emotionality.
+
+```{r adjampnze_3_103, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Ethnicity * Emotionality
+ifelse(min(ftable(reallywscnew$Ethnicity, reallywscnew$Emotionality, reallywscnew$really)) == 0, "not possible", "possible")
+m20.glm <- update(m6.glm, .~.+Ethnicity * Emotionality)
+max(vif(m20.glm)[,1])
+```
+
+Including the interaction between SemanticCategory and Emotionality leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model.
+
+We continue with adding the two-way interactions. We start by inspecting the possible two-way interactions.
+
+```{r adjampnze_3_104, echo=T, eval = T, message=FALSE, warning=FALSE}
+# find all 2-way interactions
+library(utils)
+vars <- c("Age", "Priming", "Frequency", "Gender", "SemanticCategory", 
+          "Ethnicity",  "Emotionality")
+intac <- t(combn(vars, 3))
+intac
+```
+
+Check which of these interactions can be tested.
+
+```{r adjampnze_3_105, echo=T, eval = T, message=FALSE, warning=FALSE}
+AgePrimingFrequency <- ifelse(min(ftable(reallywscnew$Age, reallywscnew$Priming, reallywscnew$Frequency)) == 0, "not possible", "possible")
+AgePrimingGender <- ifelse(min(ftable(reallywscnew$Age, reallywscnew$Priming, reallywscnew$Gender)) == 0, "not possible", "possible")
+AgePrimingSemanticCategory <- ifelse(min(ftable(reallywscnew$Age, reallywscnew$Priming, reallywscnew$SemanticCategory)) == 0, "not possible", "possible")
+AgePrimingEthnicity <- ifelse(min(ftable(reallywscnew$Age, reallywscnew$Priming, reallywscnew$Ethnicity)) == 0, "not possible", "possible")
+AgePrimingEmotionality <- ifelse(min(ftable(reallywscnew$Age, 
+reallywscnew$Priming, reallywscnew$Emotionality)) == 0, "not possible", "possible")
+AgeFrequencyGender <- ifelse(min(ftable(reallywscnew$Age, reallywscnew$Frequency, reallywscnew$Gender)) == 0, "not possible", "possible")
+AgeFrequencySemanticCategory <- ifelse(min(ftable(reallywscnew$Age, reallywscnew$Frequency, reallywscnew$SemanticCategory)) == 0, "not possible", "possible")
+AgeFrequencyEthnicity <- ifelse(min(ftable(reallywscnew$Age, reallywscnew$Frequency, reallywscnew$Ethnicity)) == 0, "not possible", "possible")
+AgeFrequencyEmotionality <- ifelse(min(ftable(reallywscnew$Age, reallywscnew$Frequency, reallywscnew$Emotionality)) == 0, "not possible", "possible")
+AgeGenderSemanticCategory <- ifelse(min(ftable(reallywscnew$Age, reallywscnew$Gender, reallywscnew$SemanticCategory)) == 0, "not possible", "possible")
+AgeGenderEthnicity <- ifelse(min(ftable(reallywscnew$Age, reallywscnew$Gender, reallywscnew$Ethnicity)) == 0, "not possible", "possible")
+AgeGenderEmotionality <- ifelse(min(ftable(reallywscnew$Age, reallywscnew$Gender, reallywscnew$Emotionality)) == 0, "not possible", "possible")
+AgeSemanticCategoryEthnicity <- ifelse(min(ftable(reallywscnew$Age, reallywscnew$SemanticCategory, reallywscnew$Ethnicity)) == 0, "not possible", "possible")
+AgeSemanticCategoryEmotionality <- ifelse(min(ftable(reallywscnew$Age, reallywscnew$SemanticCategory, reallywscnew$Emotionality)) == 0, "not possible", "possible")
+AgeEthnicityEmotionality <- ifelse(min(ftable(reallywscnew$Age, reallywscnew$Ethnicity, reallywscnew$Emotionality)) == 0, "not possible", "possible")
+PrimingFrequencyGender <- ifelse(min(ftable(reallywscnew$Priming, reallywscnew$Frequency, reallywscnew$Gender)) == 0, "not possible", "possible")
+PrimingFrequencySemanticCategory <- ifelse(min(ftable(reallywscnew$Priming, reallywscnew$Frequency, reallywscnew$SemanticCategory)) == 0, "not possible", "possible")
+PrimingFrequencyEthnicity <- ifelse(min(ftable(reallywscnew$Priming, reallywscnew$Frequency, reallywscnew$Ethnicity)) == 0, "not possible", "possible")
+PrimingFrequencyEmotionality <- ifelse(min(ftable(reallywscnew$Priming, reallywscnew$Frequency, reallywscnew$Emotionality)) == 0, "not possible", "possible")
+PrimingGenderSemanticCategory <- ifelse(min(ftable(reallywscnew$Priming, reallywscnew$Gender, reallywscnew$SemanticCategory)) == 0, "not possible", "possible")
+PrimingGenderEthnicity <- ifelse(min(ftable(reallywscnew$Priming, reallywscnew$Gender, reallywscnew$Ethnicity)) == 0, "not possible", "possible")
+PrimingGenderEmotionality <- ifelse(min(ftable(reallywscnew$Priming, reallywscnew$Gender, reallywscnew$Emotionality)) == 0, "not possible", "possible")
+PrimingSemanticCategoryEthnicity <- ifelse(min(ftable(reallywscnew$Priming, reallywscnew$SemanticCategory, reallywscnew$Ethnicity)) == 0, "not possible", "possible")
+PrimingSemanticCategoryEmotionality <- ifelse(min(ftable(reallywscnew$Priming, reallywscnew$SemanticCategory, reallywscnew$Emotionality)) == 0, "not possible", "possible")
+PrimingEthnicityEmotionality <- ifelse(min(ftable(reallywscnew$Priming, reallywscnew$Ethnicity, reallywscnew$Emotionality)) == 0, "not possible", "possible")
+FrequencyGenderSemanticCategory <- ifelse(min(ftable(reallywscnew$Frequency, reallywscnew$Gender, reallywscnew$SemanticCategory)) == 0, "not possible", "possible")
+FrequencyGenderEthnicity <- ifelse(min(ftable(reallywscnew$Frequency, reallywscnew$Gender, reallywscnew$Ethnicity)) == 0, "not possible", "possible")
+FrequencyGenderEmotionality <- ifelse(min(ftable(reallywscnew$Frequency, reallywscnew$Gender, reallywscnew$Emotionality)) == 0, "not possible", "possible")
+FrequencySemanticCategoryEthnicity <- ifelse(min(ftable(reallywscnew$Frequency, reallywscnew$SemanticCategory, reallywscnew$Ethnicity)) == 0, "not possible", "possible")
+FrequencySemanticCategoryEmotionality <- ifelse(min(ftable(reallywscnew$Frequency, reallywscnew$SemanticCategory, reallywscnew$Emotionality)) == 0, "not possible", "possible")
+FrequencyEthnicityEmotionality <- ifelse(min(ftable(reallywscnew$Frequency, reallywscnew$Ethnicity, reallywscnew$Emotionality)) == 0, "not possible", "possible")
+GenderSemanticCategoryEthnicity <- ifelse(min(ftable(reallywscnew$Gender, reallywscnew$SemanticCategory, reallywscnew$Ethnicity)) == 0, "not possible", "possible")
+GenderSemanticCategoryEmotionality <- ifelse(min(ftable(reallywscnew$Gender, reallywscnew$SemanticCategory, reallywscnew$Emotionality)) == 0, "not possible", "possible")
+GenderEthnicityEmotionality <- ifelse(min(ftable(reallywscnew$Gender, reallywscnew$Ethnicity, reallywscnew$Emotionality)) == 0, "not possible", "possible")
+SemanticCategoryEthnicityEmotionality <- ifelse(min(ftable(reallywscnew$SemanticCategory, reallywscnew$Ethnicity, reallywscnew$Emotionality)) == 0, "not possible", "possible")
+```
+
+```{r adjampnze_3_106, echo=T, eval = T, message=FALSE, warning=FALSE}
+AgePrimingFrequency
+AgePrimingGender
+AgePrimingSemanticCategory
+AgePrimingEthnicity
+AgePrimingEmotionality
+AgeFrequencyGender
+AgeFrequencySemanticCategory
+AgeFrequencyEthnicity
+AgeFrequencyEmotionality
+AgeGenderSemanticCategory
+AgeGenderEthnicity
+AgeGenderEmotionality
+AgeSemanticCategoryEthnicity
+AgeSemanticCategoryEmotionality
+AgeEthnicityEmotionality
+PrimingFrequencyGender
+PrimingFrequencySemanticCategory
+PrimingFrequencyEthnicity
+PrimingFrequencyEmotionality
+PrimingGenderSemanticCategory
+PrimingGenderEthnicity
+PrimingGenderEmotionality
+PrimingSemanticCategoryEthnicity
+PrimingSemanticCategoryEmotionality
+PrimingEthnicityEmotionality
+FrequencyGenderSemanticCategory
+FrequencyGenderEthnicity
+FrequencyGenderEmotionality
+FrequencySemanticCategoryEthnicity
+FrequencySemanticCategoryEmotionality
+FrequencyEthnicityEmotionality
+GenderSemanticCategoryEthnicity
+GenderSemanticCategoryEmotionality
+GenderEthnicityEmotionality
+SemanticCategoryEthnicityEmotionality
+```
+
+Possible combinations are:
+* AgePrimingGender
+* AgePrimingEmotionality	
+* AgeGenderEmotionality
+* PrimingGenderEthnicity		
+* PrimingGenderEmotionality
+* GenderEthnicityEmotionality
+
+We continue by adding the interactions in a step-wise step-up manner. The cutoff for collienarity is a variance inflation factor of 30 as we expect the variable that are involved in interactions to correlate with the interaction itself and thus are more leniant comapred with main effects. We start by adding the interaction between Age, Priming, and Gender.
+
+```{r adjampnze_3_107, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Priming * Gender
+m21.glm <- update(m6.glm, .~.+Age * Priming * Gender)
+max(vif(m21.glm)[,1])
+```
+
+Including the interaction between Age, Priming, and Gender leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with  adding the interaction between Age, Priming, and Emotionality.
+
+```{r adjampnze_3_108, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Priming * Emotionality
+m22.glm <- update(m6.glm, .~.+Age * Priming * Emotionality)
+max(vif(m22.glm)[,1])
+```
+
+Including the interaction between Age, Priming, and Emotionality leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with  adding the interaction between Age, Gender, and Emotionality.
+
+```{r adjampnze_3_109, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Gender * Emotionality
+m23.glm <- update(m6.glm, .~.+Age * Priming * Emotionality)
+max(vif(m23.glm)[,1])
+```
+
+Including the interaction between Age, Gender, and Emotionality leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with  adding the interaction between Age, Gender, and Emotionality.
+
+```{r adjampnze_3_110, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Age * Gender * Emotionality
+m23.glm <- update(m6.glm, .~.+Age * Gender * Emotionality)
+max(vif(m23.glm)[,1])
+```
+
+Including the interaction between Age, Gender, and Emotionality leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with  adding the interaction between Priming, Gender, and Ethnicity.
+
+```{r adjampnze_3_111, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming * Gender * Ethnicity
+m24.glm <- update(m6.glm, .~.+Priming * Gender * Ethnicity)
+max(vif(m24.glm)[,1])
+```
+
+Including the interaction between Priming, Gender, and Ethnicity leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with  adding the interaction between Priming, Gender, and Emotionality.
+
+```{r adjampnze_3_112, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Priming * Gender * Emotionality.
+m25.glm <- update(m6.glm, .~.+Priming * Gender * Emotionality)
+max(vif(m25.glm)[,1])
+```
+
+Including the interaction between Priming, Gender, and Emotionality leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with  adding the interaction between Gender, Ethnicity, and Emotionality.
+
+```{r adjampnze_3_113, echo=T, eval = T, message=FALSE, warning=FALSE}
+# add Gender * Ethnicity * Emotionality
+m26.glm <- update(m6.glm, .~.+Gender * Ethnicity * Emotionality)
+max(vif(m26.glm)[,1])
+```
+
+Including the interaction between Gender, Ethnicity, and Emotionality leads to unacceptable collinearity (vifs > 30) and we thus do not retain it in the model. We continue with inspecting the final model.
+
+```{r adjampnze_3_114, echo=T, eval = T, message=FALSE, warning=FALSE}
+summary(m6.glmer)
+```
+
+We begin the diagnostics with visualizing residuals.
+
+```{r reallynze_115, echo=T, eval = T, message=FALSE, warning=FALSE}
+par(mfrow = c(1, 4))   # display plots in 3 rows and 2 columns
+plot(m6.glmer, col = "black", pch = 20); par(mfrow = c(1, 1))
+```
+
+The residuals are symetrical and do not exhibit a funnel shape which is good. We now plot Cook's distance to check if we need to remove data points and include a data-driven cutoff threshold (which is likely too low).
+
+```{r reallynze_116, echo=T, eval = T, message=FALSE, warning=FALSE}
+# determine a cutoff for data points that have D-values higher than 4/(n-k-1) 
+cutoff <- 4/((nrow(reallywscnew)-length(coefficients(m6.glm)-2)))
+# plot cook*s distance
+plot(m6.glm, which=4, cook.levels = cutoff) 
+abline(h = cutoff, col = "red", lty = "dotted")
+```
+
+The Cook's distance plot looks a lot better and the data points are distributed much more evenly.
+
+We continue the diagnostics using the glm model and visualizing its residuals.
+
+```{r reallynze_117, echo=T, eval = T, message=FALSE, warning=FALSE}
+# start plotting
+par(mfrow = c(1, 4)) 
+plot(m6.glm); par(mfrow = c(1, 4))
+```
+
+The diagnostics show that the data still do not fit the assumptions of the model really well but the situation has improved but we have to accept this as there is not much we can do. Also, the plot does not take the random effect structure into account which is like to have a really positive impact on the fit as the random intercepts by Adjective explained a significant and substantial amount of variance. We will now perform a power analysis to check if the sample size was sufficient to arrive at robust conclusions.
+
+```{r reallynze_118, echo=T, eval = T, message=FALSE, warning=FALSE}
+# load package
+library(simr)
+# restructure data
+preallywscnew <- reallywscnew %>%
+  dplyr::select(Age, Priming, Gender, Ethnicity, Adjective, really) %>%
+  dplyr::mutate(other = ifelse(really == "really", 0, 1)) %>%
+  dplyr::mutate(really = ifelse(really == "really", 1, 0)) %>%
+  dplyr::group_by(Age, Priming, Gender, Ethnicity, Adjective) %>%
+  dplyr::summarise(really = sum(really), other = sum(other))
+# redo model
+gm1 <- glmer(cbind(really, other) ~ Age + Priming + Gender + Ethnicity + (1 | Adjective), 
+             data = preallywscnew, family = binomial, 
+             control = glmerControl(optimizer="bobyqa", 
+                                    optCtrl = list(maxIter = 100)))
+# set seed for replicability
+set.seed(2020011401)
+# calculate power for Age
+powerSim(gm1, fixed("Age", "lr"), nsim=100)
+```
+
+The power analysis confrims that the sample size is not only sufficient but even excessive and would have detected an effect the size of age in 100 percent of cases (lower ci 96.38, higher ci 100). The target is merely a standard of 80 percent in clinical trials!
+
+```{r reallynze_119, echo=T, eval = T, message=FALSE, warning=FALSE}
+# set seed for replicability
+set.seed(2019121202)
+# calculate power for Priming
+powerSim(gm1, fixed("Priming", "lr"), nsim=100)
+```
+
+The power analysis confrims that the sample size is not only sufficient but even excessive and would have detected an effect the size of age in 100 percent of cases (lower ci 96.38, higher ci 100). The target is merely a standard of 80 percent in clinical trials!
+
+We will now check if the sample size is sufficient to detect a small effect (Cohen's d 0.2) - the traditional scale is 0.2 for a small, 0.5 for medium sized, and 0.8 for a large or strong effect. 
+
+To test this, we check if the sample size of the model is sufficient to find a small effect. In order to check what a small effect is, we need to determine the odds ratios of the fixed effects and then convert them into Cohen's d values for which we have associations between traditional denominations (small, medium, and large) and effect sife values. According to @chen2010big odds ratios of 1.68, 3.47, and 6.71 are equivalent to Cohen's d = 0.2 (small), 0.5 (medium), and 0.8 (large).
+
+```{r reallynze_120, echo=T, eval = T, message=FALSE, warning=FALSE}
+estimatesfixedeffects <- fixef(gm1)
+exp(estimatesfixedeffects)
+```
+
+We will now change the size of the effect of Age20-29 to make it "small", i.e. on the brink of being noise but being just strong enough to be considered small. In other words, we will set the effect so that its odds ratio is exactly 1.68.
+
+```{r reallynze_121, echo=T, eval = T, message=FALSE, warning=FALSE}
+fixef(gm1)["Age20-29"] <- 0.519
+estimatesfixedeffects <- fixef(gm1)
+exp(estimatesfixedeffects)
+```
+
+A small effect size would be equivalent to an estimate of 0.519.
+
+We have now defined the effect size of Age20-29 to be the smallest meaningful effect. We can now test, if the model is powerful enough to detect this small effect with a likelihood high than 80 percent.
+
+```{r reallynze_122, echo=T, eval = T, message=FALSE, warning=FALSE}
+# set seed for replicability
+set.seed(2020011402)
+fixef(gm1)["Age20-29"] <- 0.519
+powerSim(gm1, fixed("Age20-29", "z"), nsim=100)
+```
+
+Based on the sample size of the present study, the model would find a small effect only in 46 percent of cases. We will now check with which accuracy the model would find a medium effect (odds ratio of 3.47 or Cohen's d of .5). To do this, we again set set the effect size to the desired medium effect.
+
+```{r reallynze_123, echo=T, eval = T, message=FALSE, warning=FALSE}
+fixef(gm1)["Age20-29"] <- 1.245
+estimatesfixedeffects <- fixef(gm1)
+exp(estimatesfixedeffects)
+```
+
+A medium effect size size would be equivalent to an estimate of 1.245.
+
+```{r reallynze_124, echo=T, eval = T, message=FALSE, warning=FALSE}
+# set seed for replicability
+set.seed(2020011403)
+fixef(gm1)["Age20-29"] <- 1.245
+powerSim(gm1, fixed("Age20-29", "z"), nsim=100)
+```
+
+Our model would detect a medium effect in 100 percent of cases. We will now check the effect size at which our model would find an effect with 80 percent accuracy.
+
+```{r reallynze_125, echo=T, eval = T, message=FALSE, warning=FALSE}
+# set seed for replicability
+set.seed(2020011404)
+fixef(gm1)["Age20-29"] <- 0.68 # 0.68 = 80%; 0.65 = 75%, 0.7 = 84%, 0.8 = 89%
+powerSim(gm1, fixed("Age20-29", "z"), nsim=100)
+```
+
+Based on the sample size in the present study, the analysis would find a mid-range small effect with an effect size of 1.97 OR (see below) or a 0.68 Estimate with an accuracy of 80 percent. The sample size in this study is thus large and robust enough to detect even mid-range small effects with a sufficient accuracy. Mid and large sized effects are detected in 100 percent of cases given the sample size at hand.
+
+```{r reallynze_126, echo=T, eval = T, message=FALSE, warning=FALSE}
+exp(fixef(gm1))
+```
+
+After confirming that the samle size is sufficient for our analysis, we can summarize the results of the analysis.
+
+```{r reallynze_127, echo=T, eval = T, message=FALSE, warning=FALSE}
+# load function for regression table summary
+source("D:\\R/meblr.summary.R")
+# set up summary table
+meblrm_ampwsc <- meblrm.summary(m0.glm, m6.glm, m0.glmer, m6.glmer, reallywscnew$really) 
+# save results to disc
+write.table(meblrm_ampwsc, "datatables/meblrm_ampwsc.txt", sep="\t")
+# inspect result summary
+meblrm_ampwsc
+```
+
+
+We also check the Anova summary to see if predictors, rather than individual predictor levels, are significant and to what extent.
+
+```{r reallynze_128, echo=T, eval = T, message=FALSE, warning=FALSE}
+# load function
+library(car)
+meblrm_ampwsc_Anova <- Anova(m6.glmer, type = "III", test = "Chi")
+# save results to disc
+write.table(meblrm_ampwsc_Anova, "datatables/meblrm_ampwsc_Anova.txt", sep="\t")
+# inspect results in Anova style
+meblrm_ampwsc_Anova
+```
+
+We will also inspect the effects of the individual predcitors. We begin with Age.
+
+```{r reallynze_129, echo=T, eval = T, message=FALSE, warning=FALSE}
+effectage <- anova(m1.glmer, m0.glmer, test = "Chi")
+effectage
+```
+
+Now, we inspect the effect of Priming.
+
+```{r reallynze_130, echo=T, eval = T, message=FALSE, warning=FALSE}
+effectpriming <- anova(m2.glmer, m1.glmer, test = "Chi")
+effectpriming
+```
+
+Now, we inspect the effect of Gender.
+
+```{r reallynze_131, echo=T, eval = T, message=FALSE, warning=FALSE}
+effectgender <- anova(m4.glmer, m2.glmer, test = "Chi")
+effectgender
+```
+
+Now, we inspect the effect of Ethnicity.
+
+```{r reallynze_132, echo=T, eval = T, message=FALSE, warning=FALSE}
+effectethnicity <- anova(m6.glmer, m4.glmer, test = "Chi")
+effectethnicity
+```
+
+In a next step, we create a summary of the model fitting process.
+
+```{r reallynze_133, echo=T, eval = T, message=FALSE, warning=FALSE}
+# use customized model comparison function
+# create comparireallyns
+m1m0 <- anova(m1.glmer, m0.glmer, test = "Chi") 
+m2m1 <- anova(m2.glmer, m1.glmer, test = "Chi")
+m3m2 <- anova(m3.glmer, m2.glmer, test = "Chi") 
+m4m2 <- anova(m4.glmer, m2.glmer, test = "Chi") 
+m5m4 <- anova(m5.glmer, m4.glmer, test = "Chi")  
+m6m4 <- anova(m6.glmer, m4.glmer, test = "Chi")  
+m7m6 <- anova(m7.glmer, m6.glmer, test = "Chi")  
+m8m6 <- anova(m8.glmer, m6.glmer, test = "Chi")
+m9m6 <- anova(m9.glmer, m6.glmer, test = "Chi")
+m10m6 <- anova(m10.glmer, m6.glmer, test = "Chi")
+m11m6 <- anova(m11.glmer, m6.glmer, test = "Chi")
+m12m6 <- anova(m12.glmer, m6.glmer, test = "Chi")
+m13m6 <- anova(m13.glmer, m6.glmer, test = "Chi")
+m51m6 <- anova(m15.glmer, m6.glmer, test = "Chi") 
+m16m6 <- anova(m16.glmer, m6.glmer, test = "Chi")
+m19m6 <- anova(m19.glmer, m6.glmer, test = "Chi")
+# create a list of the model comparireallyns
+mdlcmp <- list(m1m0, m2m1, m3m2, m4m2, m5m4, m6m4, m7m6, m8m6, m9m6, 
+               m10m6, m11m6, m12m6, m13m6, m51m6, m16m6, m19m6)
+# load function
+source("D:\\R/ModelFittingSummarySWSU.R") # for Mixed Effects Model fitting (step-wise step-up): Binary Logistic Mixed Effects Models
+# apply function
+mdl.cmp.glmersc.swsu.dm <- mdl.fttng.swsu(mdlcmp)
+# save comparisons to disc
+write.table(mdl.cmp.glmersc.swsu.dm, "datatables/mdl_cmp_glmersc_swsu_reallywscnew.txt", sep="\t")
+# inspect output
+mdl.cmp.glmersc.swsu.dm
+```
+
+In a next step, we perform Post-hoc analysis by using post-hoc Turkey tests to check which vpredictor levels are significant compared to each other. We begin with individual age levels.
+
+```{r reallynze_134, echo=T, eval = T, message=FALSE, warning=FALSE}
+library (multcomp)
+summary(glht(m6.glmer, mcp(Age="Tukey")))
+```
+
+We now proceed to check differences among Emotionality levels.
+
+```{r reallynze_135, echo=T, eval = T, message=FALSE, warning=FALSE}
+summary(glht(m6.glmer, mcp(Ethnicity="Tukey")))
+```
+
+We now check the prediction accuracy of the final minimal model.
+
+```{r reallynze_136, echo=T, eval = T, message=FALSE, warning=FALSE}
+# predict probs of nativelike for effects
+reallywscnew$PredictedFrequency <- predict(m6.glmer, reallywscnew, type="response")
+#summary(reallywscnew$PredictedFrequency)
+# create response variable
+reallywscnew$PredictedResponse <- ifelse(reallywscnew$PredictedFrequency > .5, "really", "other")
+#summary(reallywscnew$PredictedResponse)
+# load library
+library(caret)
+# create confusion matrix
+confusionMatrix(as.factor(reallywscnew$PredictedResponse), as.factor(reallywscnew$really))
+```
+
+We now turn to the visualization of the effecst of the final minimal model. We will vizualize the effects by plotting the predictions fro the different predictor levels. We begin with visualizing the effect of Priming.
+
+```{r reallynze_137, echo=T, eval = T, message=FALSE, warning=FALSE}
+# prepare plot data (pd) 
+pd <- reallywscnew
+
+# effect Priming
+p5 <- ggplot(pd, aes(x = Priming, y = PredictedFrequency)) +
+  stat_summary(fun.y = mean, geom = "point") +          
+  stat_summary(fun.data = mean_cl_boot, geom = "errorbar", width = 0.2) + 
+  coord_cartesian(ylim = c(0, 1)) +
+  theme_set(theme_bw(base_size = 20)) +
+    theme(legend.position="none", 
+        axis.text.x = element_text(size=15),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  labs(x = "Priming", y = "Predicted probability\nof really") +
+  ggsave(file = paste(imageDirectory,"PredictedPriming.png",sep="/"), 
+       height = 5,  width = 7,  dpi = 320)
+p5
+```
+
+We now turn to the visualization of the Gender effect.
+
+```{r reallynze_138, echo=T, eval = T, message=FALSE, warning=FALSE}
+# effect Gender
+p6 <- ggplot(pd, aes(x = Gender, y = PredictedFrequency)) +
+  stat_summary(fun.y = mean, geom = "point") +          
+  stat_summary(fun.data = mean_cl_boot, geom = "errorbar", width = 0.2) + 
+  coord_cartesian(ylim = c(0, 1)) +
+  theme_set(theme_bw(base_size = 20)) +
+    theme(legend.position="none", 
+        axis.text.x = element_text(size=15),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  labs(x = "Gender", y = "Predicted probability\nof really") +
+  ggsave(file = paste(imageDirectory,"PredictedGender.png",sep="/"), 
+       height = 5,  width = 7,  dpi = 320)
+p6
+```
+
+
+We now turn to the visualization of the Etnicity effect.
+
+```{r reallynze_139, echo=T, eval = T, message=FALSE, warning=FALSE}
+# effect Etnicity
+p7 <- ggplot(pd, aes(x = Ethnicity, y = PredictedFrequency)) +
+  stat_summary(fun.y = mean, geom = "point") +          
+  stat_summary(fun.data = mean_cl_boot, geom = "errorbar", width = 0.2) + 
+  coord_cartesian(ylim = c(0, 1)) +
+  theme_set(theme_bw(base_size = 20)) +
+    theme(legend.position="none", 
+        axis.text.x = element_text(size=15),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  labs(x = "Etnicity", y = "Predicted probability\nof really") +
+  ggsave(file = paste(imageDirectory,"PredictedEthnicity.png",sep="/"), 
+       height = 5,  width = 7,  dpi = 320)
+p7
+```
+We now turn to the visualization of the age effect.
+
+```{r reallynze_140, echo=T, eval = T, message=FALSE, warning=FALSE}
+# convert Age column
+Agelbs <- c("16-19", "20-29", "30-39", "40-49", "50-59", "60+")
+pd$Age <- ifelse(pd$Age == "16-19", 6,
+                 ifelse(pd$Age == "20-29", 5,
+                        ifelse(pd$Age == "30-39", 4, 
+                               ifelse(pd$Age == "40-49", 3, 
+                                      ifelse(pd$Age == "50-59", 2, 
+                                             ifelse(pd$Age == "60+", 1, pd$Age))))))
+pd$Age<- as.numeric(pd$Age)
+# effect age
+p8 <- ggplot(pd, aes(x = Age, y = PredictedFrequency)) +
+  geom_smooth(aes(y = PredictedFrequency, x = Age), 
+              colour="black", size=1, se = T, method = "loess") +
+  coord_cartesian(ylim = c(0, 1)) +
+  theme_set(theme_light(base_size = 15)) +
+  theme(legend.position="none", 
+        axis.text.x = element_text(size=15),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  labs(x = "Frequency of adj. type", y = "Predicted probability\nof really") +
+  scale_x_continuous(name = "Age",
+                     breaks = c(1, 2, 3, 4, 5, 6),
+                     labels=rev(Agelbs))
+ggsave(file = paste(imageDirectory,"PredictedAge.png",sep="/"), 
+       height = 5,  width = 7,  dpi = 320)
+p8
+```
+
+In addition to plotting the predicted values of the predictor levels, we also plot the effects directly using the effects package. 
+
+```{r reallynze_141, echo=T, eval = T, message=FALSE, warning=FALSE}
+library(effects)
+png("images/effectsfinalmodel.png",  width = 960, height = 480) 
+plot(allEffects(m6.glmer), type="response", ylim=c(0,1), grid=TRUE, 
+     lines = list(col="black",
+                  lty = 1,
+                  confint=list(style="bars",
+                               col = "grey80")), 
+     ylab = "Prob (really)")
+dev.off()
+plot(allEffects(m6.glmer), type="response", ylim=c(0,1), grid=TRUE, 
+     lines = list(col="black",
+                  lty = 1,
+                  confint=list(style="bars",
+                               col = "grey80")), 
+     ylab = "Prob (really)")
+```
+
+In a next step, we cerate the publication visualization which combines the effects of Emotionality and Age in a single effect plot by generating new data to which the predictions are added and then plotted.
+
+```{r reallynze_142, echo=T, eval = T, message=FALSE, warning=FALSE}
+randomtb <- ranef(m6.glmer)
+rndmadj <- as.vector(unlist(randomtb$`Adjective`))
+adj <- as.vector(unlist(rownames(randomtb$`Adjective`)))
+rndmadjtb <- data.frame(adj, rndmadj)
+colnames(rndmadjtb) <- c("Adjective", "Intercept")
+rndmadjtb <- rndmadjtb[order(rndmadjtb$Intercept, decreasing = T),]
+rndmadjtb
+
+p9 <- ggplot(rndmadjtb, aes(Adjective, Intercept)) +
+  geom_point(aes(reorder(Adjective, -Intercept, fun = Intercept), y=Intercept)) +
+  coord_cartesian(ylim = c(-1.5, 1.5)) +
+  theme_set(theme_bw(base_size = 15)) +
+  theme(legend.position="none", 
+        axis.text.x = element_text(size=15, angle=90),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  scale_x_discrete(breaks = rndmadjtb$Adjective[seq(1,length(rndmadjtb$Adjective),9)]) +
+  labs(x = "Adjective type \n(only selected labels displayed)", y = "Adjustment to Intercept")
+ggsave(file = paste(imageDirectory,"RanAdjective.png",sep="/"), 
+       height = 5,  width = 7.5,  dpi = 320)
+# activate (remove #) to show
+p9
+```
+
+In a final step, we create a table which shows the sample size at different stages of the analysis. In a first step, we extract the number of adjectives.
+
+```{r reallynze_143, echo=T, eval = T, message=FALSE, warning=FALSE}
+# load data sets
+raw <- read.delim("datatables/wscadjdf.txt", sep = "\t", header = T, quote = "\"", skipNul = T)
+processed <- read.delim("datatables/ampwsc.txt", sep = "\t", header = T, quote = "\"", skipNul = T)
+processed <- processed %>%
+  dplyr::select(-AgeNumeric) %>%
+  dplyr::mutate(FileSpeaker = paste(File, Speaker, sep = ""))  %>%
+  dplyr::mutate(really = ifelse(Variant == "really", "really", "other")) %>%
+  na.omit()
+statz1 <- read.delim("datatables/ampwsc.txt", sep = "\t", header = T, quote = "\"", skipNul = T)
+statz1 <- statz1 %>%
+  dplyr::filter(Variant != "0") %>%
+  dplyr::select(-AgeNumeric) %>%
+  dplyr::mutate(FileSpeaker = paste(File, Speaker, sep = ""))  %>%
+  dplyr::mutate(really = ifelse(Variant == "really", "really", "other")) %>%
+  na.omit()
+cutoff <- 0.007
+statz2 <- statz1[-(which(reallywsc$cooksdistance > cutoff)),]
+# extract number of adjectives
+token_raw <- nrow(raw)
+token_processed <- nrow(processed)
+token_statz1 <- nrow(statz1)
+token_statz2 <- nrow(statz2)
+# create vector
+adjsN <- c(token_raw, token_processed, token_statz1, token_statz2) 
+# inspect vector
+adjsN
+```
+
+Now, we extract the number of speakers.
+
+```{r reallynze_144, echo=T, eval = T, message=FALSE, warning=FALSE}
+# extract number of speakers
+speaker_raw <- length(table(paste(raw$File, raw$Speaker, sep = "")))
+speaker_processed <- length(table(processed$FileSpeaker))
+speaker_statz1 <- length(table(statz1$FileSpeaker))
+speaker_stat2 <- length(table(statz2$FileSpeaker))
+# create vector
+spkrsN <- c(speaker_raw, speaker_processed, speaker_statz1, speaker_stat2) 
+# inspect vector
+spkrsN
+```
+
+Now, we extract the number of amplified slots.
+
+```{r reallynze_145, echo=T, eval = T, message=FALSE, warning=FALSE}
+# extract number of amplified slots
+# we first need to determine the number of amplifier slots for the raw data
+# vecttor of amplifiers
+# define amplifiers
+amplifiers <- c("absolutely", "actually", "aggressively", 
+                "amazingly", "appallingly", "awful", "awfully", 
+                "badly", "bloody", "certainly", "clearly",
+                "complete", "dead", "completely", "considerably", 
+                "crazy", "decidedly", "definitely",  "distinctly", 
+                "dreadfully", "enormously", "entirely", "especially", 
+                "exactly", "exceedingly", "exceptionally", 
+                "excruciatingly", "extraordinarily", "extremely",
+                "fiercely", "firmly", "frightfully", "fucking", 
+                "fully", "genuinely", "greatly",
+                "grossly", "heavily", "highly", "hopelessly", 
+                "horrendously", "hugely",
+                "immediately", "immensely", "incredibly", 
+                "infinitely", "intensely", "irrevocably",
+                "mad", "mega", "mighty", "most", "much", 
+                "obviously", "openly", "overwhelmingly", "particularly", 
+                "perfectly", "plenty", "positively", "precisely", 
+                "pretty", "profoundly", "purely", 
+                #"quite", 
+                "real", "really", "remarkably", "seriously", 
+                "shocking",   "significant", "significantly", "so", 
+                "specially", "specifically", "strikingly",
+                "strongly", "substantially", "super", "surely", 
+                "terribly", "terrifically", 
+                #"too",
+                "total", "totally", "traditionally", "true", 
+                "truly", "ultra", "utterly", "really",
+                "viciously", 
+                #"well", 
+                "wholly", "wicked", "wildly")
+raw <- raw %>%
+  dplyr::mutate(Variant = str_replace_all(tolower(Variant), "/.*", "")) %>%
+  dplyr::mutate(Amplified = ifelse(Variant %in% amplifiers, 1, 0))
+# extract number of amplified slots
+amp_raw <- sum(raw$Amplified)
+amp_processed <- sum(processed$Amplified)
+amp_statz1 <- sum(statz1$Amplified)
+amp_stat2 <- sum(statz2$Amplified)
+# create vector
+ampN <- c(amp_raw, amp_processed, token_statz1, token_statz2) 
+# inspect vector
+ampN
+```
+
+Now, we extract the number of amplified slots.
+
+```{r reallynze_146, echo=T, eval = T, message=FALSE, warning=FALSE}
+# create table from results
+Table0 <- data.frame(spkrsN, adjsN, ampN) 
+Table0 <- Table0 %>%
+  dplyr::rename(Speakers = spkrsN, AdjectiveToken = adjsN, 
+                AmplifiedAdjectives = ampN) %>%
+  dplyr::mutate(Percent = round(AmplifiedAdjectives/AdjectiveToken*100, 1))
+rownames(Table0) <- c("raw data",  "processed data", "variable context data", 
+                      "variable context data without outliers")
+# save table to disc
+write.table(Table0, "datatables/Table0.txt", sep = "\t", row.names = T, col.names = T, quote = F)
+# inspect vector
+Table0
+```
+
+We now have to recreate Table 2 bacuse we had to remove outliers during the model fitting.
+
+```{r reallynze_147, echo=T, eval = T, message=FALSE, warning=FALSE}
+# create table
+Table2 <- statz2 %>%
+  dplyr::select(Age, Gender, FileSpeaker, really)  %>%
+  dplyr::group_by(Age, Gender) %>%
+  dplyr::summarize(Speakers = length(names(table(FileSpeaker))),
+                   AdjectiveSlots = n(),
+                   really = table(really)[2]) %>%
+  dplyr::mutate(Percent = round(really/AdjectiveSlots*100, 2))
+Table2 <- rbind(as.data.frame(Table2), c("", "", sum(Table2$Speakers), 
+                  sum(Table2$AdjectiveSlots), 
+                  sum(Table2$really), round(mean(Table2$Percent), 2)))
+# save data to disc
+write.table(Table2, "datatables/Table2.txt", sep = "\t", row.names = F)
+# inspect Table2
+Table2
+```
+
+
+```{r reallynze_148, echo=T, eval = T, message=FALSE, warning=FALSE}
+Varianttbwsc <- table(processed$Variant)
+Varianttbwsc <- Varianttbwsc[order(table(processed$Variant), decreasing = T)]
+Variantnames <- as.vector(names(Varianttbwsc))
+Variantn <- as.vector(Varianttbwsc)
+Variantprcnt <- round(Variantn/sum(Variantn)*100, 2)
+Variantprcnt2 <-  c(0, round(Variantn[2:length(Variantn)]/sum(Variantn[2:length(Variantn)])*100, 2))
+Table3 <- data.frame(Variantnames, Variantn, Variantprcnt, Variantprcnt2)
+colnames(Table3) <- c("Variant", "TokenFrequency", "PercentageSlots", "PercentAgeAmplifiedensifiers")
+Table3 <- rbind(Table3, c("Total", sum(as.vector(Table3$TokenFrequency)), 
+                          "", ""))
+rownames(Table3) <- NULL
+# save data to disc
+write.table(Table3, "datatables/Table3.txt", sep = "\t", row.names = F)
+# inspect data
+Table3
+```
+
+
+We have reached the end of the analysis of adjective amplifiers in New Zealand English.
+
+# References
+
+
