@@ -1,0 +1,5 @@
+Speakers	AdjectiveToken	AmplifiedAdjectives	Percent
+raw data	1434	57132	4589	8
+processed data	531	11285	1715	15.2
+variable context data	441	1715	1715	100
+variable context data without outliers	441	1713	1713	100
